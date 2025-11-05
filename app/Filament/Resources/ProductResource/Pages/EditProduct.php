@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Filament\Resources\ProductResource\Pages;
+
+use App\Filament\Resources\ProductResource;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+
+class EditProduct extends EditRecord
+{
+    protected static string $resource = ProductResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\ViewAction::make()
+                ->label('Lihat'),
+            Actions\DeleteAction::make()
+                ->label('Hapus'),
+        ];
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return 'Produk berhasil diperbarui';
+    }
+}

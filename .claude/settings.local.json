@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(composer require:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir \"c:\\xampp\\htdocs\\klinik-hewan\\storage\\app\\public\\services\\icons\" /b)",
+      "Bash(del \"database\\migrations\\2025_10_19_165241_create_social_accounts_table.php\")",
+      "Bash(composer remove laravel/socialite)",
+      "Bash(dir \"c:\\xampp\\htdocs\\klinik-hewan\\storage\\app\\public\" /b)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
