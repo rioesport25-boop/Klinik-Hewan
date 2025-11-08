@@ -117,13 +117,14 @@ onUnmounted(() => {
                     <!-- Tampilkan gambar asli jika ada, atau gradient placeholder -->
                     <div
                         v-if="image.image_url"
-                        class="h-full w-full bg-cover bg-center"
+                        class="h-full w-full bg-cover bg-center transition-transform duration-[8000ms] ease-out"
+                        :class="currentSlide === index ? 'scale-110' : 'scale-100'"
                         :style="{ backgroundImage: `url(${image.image_url})` }"
                     ></div>
                     <div
                         v-else
-                        class="h-full w-full bg-gradient-to-br"
-                        :class="image.gradient"
+                        class="h-full w-full bg-gradient-to-br transition-transform duration-[8000ms] ease-out"
+                        :class="[image.gradient, currentSlide === index ? 'scale-110' : 'scale-100']"
                     ></div>
                 </div>
                 <!-- Overlay untuk readability -->
@@ -285,28 +286,6 @@ onUnmounted(() => {
                                 {{ doctor.description }}
                             </p>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- CTA Section -->
-        <div class="bg-amber-600">
-            <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-                <div class="text-center">
-                    <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                        Siap Merawat Hewan Kesayangan Anda?
-                    </h2>
-                    <p class="mt-4 text-lg text-amber-100">
-                        Hubungi kami untuk membuat janji temu atau konsultasi
-                    </p>
-                    <div class="mt-8">
-                        <a
-                            href="#"
-                            class="inline-flex items-center rounded-md bg-white px-6 py-3 text-base font-medium text-amber-600 shadow-sm hover:bg-amber-50"
-                        >
-                            Buat Janji Temu
-                        </a>
                     </div>
                 </div>
             </div>

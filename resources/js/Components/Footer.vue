@@ -30,8 +30,19 @@ const currentYear = new Date().getFullYear();
 </style>
 
 <template>
-    <footer class="bg-gray-900 text-gray-300">
-        <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <footer class="relative bg-gray-900 text-gray-300">
+        <!-- Background Image -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div 
+                class="h-full w-full bg-cover bg-center bg-no-repeat"
+                :style="{ backgroundImage: `url(/storage/footer_image.jpg)` }"
+            ></div>
+            <!-- Dark overlay untuk readability -->
+            <div class="absolute inset-0 bg-gray-900 bg-opacity-90"></div>
+        </div>
+
+        <!-- Content -->
+        <div class="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
             <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
                 <!-- Logo & Social Media -->
                 <div class="space-y-4">
