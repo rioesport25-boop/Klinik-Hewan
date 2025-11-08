@@ -75,26 +75,6 @@ class ImagesHeader extends Page
                             ->helperText('Gambar background untuk efek parallax di halaman gallery. Rekomendasi: 1920x1080px atau lebih besar. Max: 3MB')
                             ->columnSpanFull(),
                     ]),
-
-                Section::make('Petshop Header Image')
-                    ->description('Gambar header untuk halaman petshop (Coming Soon)')
-                    ->schema([
-                        FileUpload::make('petshop_header_image')
-                            ->label('Gambar Header Petshop')
-                            ->disk('public')
-                            ->directory('petshop/header')
-                            ->image()
-                            ->imageEditor()
-                            ->imageEditorAspectRatios([
-                                '16:9',
-                                '21:9',
-                                '3:1',
-                            ])
-                            ->maxSize(2048)
-                            ->helperText('Upload gambar untuk header halaman petshop. Rekomendasi: 1920x600px. Max: 2MB')
-                            ->columnSpanFull()
-                            ->disabled(),
-                    ]),
             ])
             ->statePath('data');
     }
