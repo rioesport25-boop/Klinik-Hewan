@@ -30,15 +30,15 @@ const currentYear = new Date().getFullYear();
 </style>
 
 <template>
-    <footer class="relative bg-gray-900 text-gray-300">
+    <footer class="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black text-white">
         <!-- Background Image -->
         <div class="absolute inset-0 overflow-hidden">
             <div 
-                class="h-full w-full bg-cover bg-center bg-no-repeat"
+                class="h-full w-full bg-cover bg-center bg-no-repeat opacity-20"
                 :style="{ backgroundImage: `url(/storage/footer_image.jpg)` }"
             ></div>
-            <!-- Dark overlay untuk readability -->
-            <div class="absolute inset-0 bg-gray-900 bg-opacity-90"></div>
+            <!-- Gradient overlay untuk depth dan readability -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-gray-900/40 to-transparent"></div>
         </div>
 
         <!-- Content -->
@@ -117,19 +117,19 @@ const currentYear = new Date().getFullYear();
 
                 <!-- About -->
                 <div>
-                    <h3 class="mb-4 text-lg font-semibold text-white">About</h3>
-                    <p class="text-sm leading-relaxed" v-if="footerSettings.about_text">
+                    <h3 class="mb-4 text-lg font-semibold text-white drop-shadow-lg">About</h3>
+                    <p class="text-sm leading-relaxed text-gray-200" v-if="footerSettings.about_text">
                         {{ footerSettings.about_text }}
                     </p>
-                    <p class="text-sm leading-relaxed" v-else>
+                    <p class="text-sm leading-relaxed text-gray-200" v-else>
                         Klinik hewan terpercaya yang memberikan pelayanan terbaik untuk hewan kesayangan Anda.
                     </p>
                 </div>
 
                 <!-- Contact -->
                 <div>
-                    <h3 class="mb-4 text-lg font-semibold text-white">Contact</h3>
-                    <ul class="space-y-3 text-sm">
+                    <h3 class="mb-4 text-lg font-semibold text-white drop-shadow-lg">Contact</h3>
+                    <ul class="space-y-3 text-sm text-gray-200">
                         <li v-if="footerSettings.contact_phone" class="flex items-start">
                             <svg class="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -154,14 +154,14 @@ const currentYear = new Date().getFullYear();
 
                 <!-- Google Maps / Lokasi Kami -->
                 <div v-if="footerSettings.google_maps_iframe">
-                    <h3 class="mb-4 text-lg font-semibold text-white">Lokasi Kami</h3>
-                    <div class="maps-container overflow-hidden rounded-lg" v-html="footerSettings.google_maps_iframe"></div>
+                    <h3 class="mb-4 text-lg font-semibold text-white drop-shadow-lg">Lokasi Kami</h3>
+                    <div class="maps-container overflow-hidden rounded-lg shadow-xl" v-html="footerSettings.google_maps_iframe"></div>
                 </div>
             </div>
 
             <!-- Copyright -->
-            <div class="mt-8 border-t border-gray-800 pt-8 text-center text-sm">
-                <p>&copy; {{ currentYear }} Klinik Hewan. All rights reserved.</p>
+            <div class="mt-8 border-t border-gray-700/50 pt-8 text-center text-sm">
+                <p class="text-gray-300">&copy; {{ currentYear }} Klinik Hewan. All rights reserved.</p>
             </div>
         </div>
     </footer>
