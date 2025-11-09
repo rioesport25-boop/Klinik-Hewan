@@ -164,8 +164,8 @@ onUnmounted(() => {
 
             <!-- Curved Bottom Border -->
             <div class="absolute bottom-0 left-0 right-0 z-10">
-                <svg viewBox="0 0 1440 120" class="w-full" preserveAspectRatio="none" style="height: 80px;">
-                    <path d="M0,0 C480,120 960,120 1440,0 L1440,120 L0,120 Z" fill="rgb(249, 250, 251)" class="dark:fill-gray-900"></path>
+                <svg viewBox="0 0 1440 80" class="w-full" preserveAspectRatio="none" style="height: 60px;">
+                    <path d="M0,0 C480,80 960,80 1440,0 L1440,80 L0,80 Z" fill="rgb(249, 250, 251)" class="dark:fill-gray-900"></path>
                 </svg>
             </div>
         </div>
