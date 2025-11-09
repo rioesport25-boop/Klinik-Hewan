@@ -31,6 +31,13 @@ const currentYear = new Date().getFullYear();
 
 <template>
     <footer class="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black text-white">
+        <!-- Curved Top Border (Cembung) -->
+        <div class="absolute top-0 left-0 right-0 z-10">
+            <svg viewBox="0 0 1440 100" class="w-full" preserveAspectRatio="none" style="height: 80px;">
+                <path d="M0,100 C480,0 960,0 1440,100 L1440,0 L0,0 Z" fill="rgb(249, 250, 251)" class="dark:fill-gray-900"></path>
+            </svg>
+        </div>
+
         <!-- Background Image -->
         <div class="absolute inset-0 overflow-hidden">
             <div 
@@ -42,7 +49,7 @@ const currentYear = new Date().getFullYear();
         </div>
 
         <!-- Content -->
-        <div class="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div class="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 pt-20">
             <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
                 <!-- Logo & Social Media -->
                 <div class="space-y-6">
