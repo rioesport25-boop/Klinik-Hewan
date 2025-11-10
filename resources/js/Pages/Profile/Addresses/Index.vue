@@ -1,7 +1,9 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+
+const page = usePage();
 
 defineProps({
     addresses: {
@@ -12,6 +14,7 @@ defineProps({
 
 const showAddressModal = ref(false);
 const showMapModal = ref(false);
+const showDetailModal = ref(false);
 const searchQuery = ref('');
 const currentLocation = ref(null);
 const selectedAddress = ref({
@@ -20,6 +23,8 @@ const selectedAddress = ref({
     longitude: null,
     full_address: '',
     label: 'Rumah',
+    recipient_name: '',
+    phone_number: '',
 });
 
 const openAddressModal = () => {
@@ -87,11 +92,73 @@ const searchLocation = () => {
     }
 };
 
-const saveAddress = () => {
-    console.log('Saving address:', selectedAddress.value);
-    // TODO: Send to backend to save address
-    alert('Alamat berhasil disimpan! (Feature coming soon)');
-    closeMapModal();
+const saveAddressDetails = () => {
+    // Move from map modal to detail modal
+    showMapModal.value = false;
+    showDetailModal.value = true;
+    
+    // Pre-fill recipient name and phone from user if available
+    const user = page.props.auth.user;
+    if (!selectedAddress.value.recipient_name && user) {
+        selectedAddress.value.recipient_name = user.name || '';
+    }
+};
+
+const closeDetailModal = () => {
+    showDetailModal.value = false;
+};
+
+const form = useForm({
+    label: 'Rumah',
+    recipient_name: '',
+    phone_number: '',
+    full_address: '',
+    city: '',
+    province: '',
+    postal_code: '',
+    latitude: null,
+    longitude: null,
+    is_default: false,
+});
+
+const submitAddress = () => {
+    form.label = selectedAddress.value.label;
+    form.recipient_name = selectedAddress.value.recipient_name;
+    form.phone_number = selectedAddress.value.phone_number;
+    form.full_address = selectedAddress.value.full_address;
+    form.latitude = selectedAddress.value.latitude;
+    form.longitude = selectedAddress.value.longitude;
+    
+    form.post(route('profile.addresses.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeDetailModal();
+            selectedAddress.value = {
+                name: '',
+                latitude: null,
+                longitude: null,
+                full_address: '',
+                label: 'Rumah',
+                recipient_name: '',
+                phone_number: '',
+            };
+            form.reset();
+        },
+    });
+};
+
+const setDefaultAddress = (addressId) => {
+    router.post(route('profile.addresses.set-default', addressId), {}, {
+        preserveScroll: true,
+    });
+};
+
+const deleteAddress = (addressId) => {
+    if (confirm('Apakah Anda yakin ingin menghapus alamat ini?')) {
+        router.delete(route('profile.addresses.destroy', addressId), {
+            preserveScroll: true,
+        });
+    }
 };
 </script>
 
@@ -142,7 +209,55 @@ const saveAddress = () => {
                         </div>
 
                         <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            <!-- Address cards will be displayed here -->
+                            <div
+                                v-for="address in addresses"
+                                :key="address.id"
+                                class="relative rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
+                            >
+                                <!-- Label Badge -->
+                                <div class="mb-3 flex items-center justify-between">
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                        {{ address.label }}
+                                    </span>
+                                    <button
+                                        v-if="!address.is_default"
+                                        @click="setDefaultAddress(address.id)"
+                                        class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                    >
+                                        Alamat Dipilih
+                                    </button>
+                                    <span
+                                        v-else
+                                        class="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400"
+                                    >
+                                        <svg class="mr-1 size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Alamat Dipilih
+                                    </span>
+                                </div>
+
+                                <!-- Recipient Info -->
+                                <h4 class="text-base font-semibold text-gray-900 dark:text-white">
+                                    {{ address.recipient_name }}
+                                </h4>
+                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    {{ address.phone_number }}
+                                </p>
+
+                                <!-- Address -->
+                                <p class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                    {{ address.full_address }}
+                                </p>
+
+                                <!-- Edit Link -->
+                                <button
+                                    @click="deleteAddress(address.id)"
+                                    class="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                >
+                                    Ubah Alamat
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -394,15 +509,126 @@ const saveAddress = () => {
                                         </div>
                                     </div>
 
-                                    <!-- Save Button -->
+                                    <!-- Continue Button -->
                                     <button
                                         type="button"
-                                        @click="saveAddress"
+                                        @click="saveAddressDetails"
                                         class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                     >
                                         Pilih Titik Lokasi
                                     </button>
                                 </div>
+                            </div>
+                        </Transition>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
+
+        <!-- Modal Detail Alamat -->
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition ease-out duration-200"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition ease-in duration-150"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+            >
+                <div
+                    v-if="showDetailModal"
+                    class="fixed inset-0 z-50 overflow-y-auto"
+                >
+                    <!-- Backdrop -->
+                    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity dark:bg-gray-900 dark:bg-opacity-75"></div>
+
+                    <!-- Modal Container -->
+                    <div class="flex min-h-full items-center justify-center p-4">
+                        <Transition
+                            enter-active-class="transition ease-out duration-200"
+                            enter-from-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                            enter-to-class="opacity-100 translate-y-0 sm:scale-100"
+                            leave-active-class="transition ease-in duration-150"
+                            leave-from-class="opacity-100 translate-y-0 sm:scale-100"
+                            leave-to-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                        >
+                            <div
+                                v-if="showDetailModal"
+                                class="relative w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-xl transition-all dark:bg-gray-800"
+                            >
+                                <!-- Header -->
+                                <div class="flex items-center justify-between mb-6">
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                        Detail Alamat
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        @click="closeDetailModal"
+                                        class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                                    >
+                                        <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Form -->
+                                <form @submit.prevent="submitAddress" class="space-y-4">
+                                    <!-- Recipient Name -->
+                                    <div>
+                                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Nama Penerima <span class="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            v-model="selectedAddress.recipient_name"
+                                            type="text"
+                                            required
+                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                                            placeholder="Masukkan nama penerima"
+                                        >
+                                    </div>
+
+                                    <!-- Phone Number -->
+                                    <div>
+                                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Nomor Telepon <span class="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            v-model="selectedAddress.phone_number"
+                                            type="tel"
+                                            required
+                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                                            placeholder="08xxxxxxxxxx"
+                                        >
+                                    </div>
+
+                                    <!-- Address Preview -->
+                                    <div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-900">
+                                        <div class="flex items-start gap-3">
+                                            <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
+                                                <svg class="size-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                                                </svg>
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Alamat</p>
+                                                <p class="mt-1 text-sm text-gray-900 dark:text-white">
+                                                    {{ selectedAddress.full_address }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Submit Button -->
+                                    <button
+                                        type="submit"
+                                        :disabled="form.processing"
+                                        class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-800"
+                                    >
+                                        {{ form.processing ? 'Menyimpan...' : 'Simpan Alamat' }}
+                                    </button>
+                                </form>
                             </div>
                         </Transition>
                     </div>

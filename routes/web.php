@@ -164,6 +164,11 @@ Route::middleware([
     // Profile Routes
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/addresses', [\App\Http\Controllers\Profile\AddressController::class, 'index'])->name('addresses');
+        Route::post('/addresses', [\App\Http\Controllers\Profile\AddressController::class, 'store'])->name('addresses.store');
+        Route::patch('/addresses/{address}', [\App\Http\Controllers\Profile\AddressController::class, 'update'])->name('addresses.update');
+        Route::delete('/addresses/{address}', [\App\Http\Controllers\Profile\AddressController::class, 'destroy'])->name('addresses.destroy');
+        Route::post('/addresses/{address}/set-default', [\App\Http\Controllers\Profile\AddressController::class, 'setDefault'])->name('addresses.set-default');
+        
         Route::get('/favorites', [\App\Http\Controllers\Profile\FavoriteController::class, 'index'])->name('favorites');
     });
 });
