@@ -315,8 +315,8 @@ const deleteAddress = (addressId) => {
                                 <!-- Search Input -->
                                 <div class="mb-4">
                                     <div class="relative">
-                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                                            <svg class="size-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                            <svg class="size-5 text-blue-500 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                                             </svg>
@@ -325,7 +325,7 @@ const deleteAddress = (addressId) => {
                                             v-model="searchQuery"
                                             type="text"
                                             placeholder="Cari lokasi/gedung/nama jalan"
-                                            class="block w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-12 pr-4 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                                            class="block w-full rounded-lg border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
                                             @keyup.enter="searchLocation"
                                         >
                                     </div>
@@ -447,20 +447,23 @@ const deleteAddress = (addressId) => {
                                 <!-- Address Details Form -->
                                 <div class="p-6 space-y-4">
                                     <!-- Location Name -->
-                                    <div class="flex items-start gap-3">
-                                        <div class="rounded-lg bg-red-50 p-2 dark:bg-red-900/20">
-                                            <svg class="size-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                                            </svg>
-                                        </div>
-                                        <div class="flex-1">
-                                            <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
-                                                {{ selectedAddress.name || 'Lokasi Terpilih' }}
-                                            </h4>
-                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                {{ selectedAddress.full_address || 'Memuat alamat...' }}
-                                            </p>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+                                        <div class="flex items-start gap-3">
+                                            <div class="flex-shrink-0 rounded-lg bg-red-50 p-2 dark:bg-red-900/30">
+                                                <svg class="size-5 text-red-500 dark:text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                                                </svg>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Area</p>
+                                                <h4 class="text-sm font-semibold text-gray-900 dark:text-white break-words">
+                                                    {{ selectedAddress.name || 'Lokasi Terpilih' }}
+                                                </h4>
+                                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-400 break-words">
+                                                    {{ selectedAddress.full_address || 'Memuat alamat...' }}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
 
