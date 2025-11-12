@@ -4,7 +4,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
     cart: {
@@ -40,17 +40,50 @@ const isProcessingCheckout = ref(false);
 // Calculate shipping fee based on delivery type
 const shippingFee = computed(() => {
     if (selectedDeliveryType.value === 'pickup') {
+        return 0; // Pickup is free
+    }
+    
+    if (selectedDeliveryOption.value === 'instant') {
+        // Free shipping for instant delivery above Rp 150.000
+        if (subtotal.value >= 150000) {
+            return 0;
+        }
+        return 7000; // Instant delivery Rp 7.000
+    }
+    
+    // Regular delivery
+    // Free shipping for regular delivery above Rp 30.000
+    if (subtotal.value >= 30000) {
         return 0;
     }
-    if (selectedDeliveryOption.value === 'instant') {
-        return 7000;
-    }
-    // Regular delivery is free
-    return 0;
+    return 5000; // Regular delivery Rp 5.000
 });
 
 // Calculate total
 const total = computed(() => subtotal.value + shippingFee.value);
+
+// Check if current time is within operational hours (07:00 - 21:00 WIB)
+const isOperationalHours = computed(() => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    // Operational hours: 07:00 - 20:59 (before 21:00)
+    return currentHour >= 7 && currentHour < 21;
+});
+
+// Check if "Instant" delivery is available (only during operational hours)
+const isInstantAvailable = computed(() => {
+    return isOperationalHours.value;
+});
+
+// Check if "Hari ini" is available (only during operational hours)
+const isTodayAvailable = computed(() => {
+    return isOperationalHours.value;
+});
+
+// Check if "Pickup" is available (only during operational hours)
+const isPickupAvailable = computed(() => {
+    return isOperationalHours.value;
+});
 
 // Get date labels
 const getDateLabel = (type) => {
@@ -120,14 +153,51 @@ const selectTimeSlot = (time) => {
 };
 
 const selectDeliveryDate = (dateType) => {
+    // Prevent selecting "today" if outside operational hours
+    if (dateType === 'today' && !isTodayAvailable.value) {
+        return;
+    }
     selectedDeliveryDate.value = dateType;
     selectedDeliveryTime.value = null; // Reset time when date changes
+};
+
+const selectDeliveryOption = (option) => {
+    // Prevent selecting "instant" if outside operational hours
+    if (option === 'instant' && !isInstantAvailable.value) {
+        return;
+    }
+    selectedDeliveryOption.value = option;
+};
+
+const selectDeliveryType = (type) => {
+    // Prevent selecting "pickup" if outside operational hours
+    if (type === 'pickup' && !isPickupAvailable.value) {
+        return;
+    }
+    selectedDeliveryType.value = type;
 };
 
 const confirmTimeSelection = () => {
     showTimePickerModal.value = false;
     showDeliveryModal.value = true;
 };
+
+// Auto-adjust selections when outside operational hours
+watch(isOperationalHours, (newValue) => {
+    if (!newValue) {
+        // Outside operational hours - switch to delivery with regular option
+        if (selectedDeliveryType.value === 'pickup') {
+            selectedDeliveryType.value = 'delivery';
+            selectedDeliveryOption.value = 'regular';
+        }
+        if (selectedDeliveryOption.value === 'instant') {
+            selectedDeliveryOption.value = 'regular';
+        }
+        if (selectedDeliveryDate.value === 'today') {
+            selectedDeliveryDate.value = 'tomorrow';
+        }
+    }
+});
 
 const confirmDeliveryType = () => {
     // If regular delivery is selected but no time selected, open time picker
@@ -150,9 +220,9 @@ const getDeliveryLabel = () => {
     }
     if (selectedDeliveryTime.value) {
         const dateLabel = getDateLabel(selectedDeliveryDate.value);
-        return `Pesan Antar - Reguler (${dateLabel.date} ${dateLabel.month}, ${selectedDeliveryTime.value}) - Gratis`;
+        return `Pesan Antar - Reguler (${dateLabel.date} ${dateLabel.month}, ${selectedDeliveryTime.value}) - Rp 5.000`;
     }
-    return 'Pesan Antar - Reguler (Pilih Waktu)';
+    return 'Pesan Antar - Reguler (Pilih Waktu) - Rp 5.000';
 };
 
 const processCheckout = () => {
@@ -209,7 +279,11 @@ const processCheckout = () => {
         },
         onError: (errors) => {
             isProcessingCheckout.value = false;
-            alert(errors.message || 'Terjadi kesalahan. Silakan coba lagi.');
+            console.error('Checkout Error:', errors);
+            
+            // Show more detailed error message
+            const errorMessage = errors.message || Object.values(errors).flat().join('\n') || 'Terjadi kesalahan. Silakan coba lagi.';
+            alert(errorMessage);
         },
     });
 };
@@ -362,6 +436,20 @@ const clearCart = () => {
                     </div>
 
                     <aside class="space-y-6">
+                        <!-- Free Shipping Info - Dynamic based on delivery option -->
+                        <div v-if="selectedDeliveryType === 'delivery' && ((selectedDeliveryOption === 'regular' && subtotal < 30000) || (selectedDeliveryOption === 'instant' && subtotal < 150000))" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20">
+                            <div class="flex items-start gap-3">
+                                <svg class="size-5 flex-shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                                </svg>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                        Dapatkan gratis ongkir untuk pembelanjaan di atas <span class="font-bold">{{ selectedDeliveryOption === 'instant' ? 'Rp 150.000' : 'Rp 30.000' }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Tipe Pemesanan & Alamat Pengiriman (Gabungan) -->
                         <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800 space-y-6">
                             <!-- Tipe Pemesanan -->
@@ -389,11 +477,11 @@ const clearCart = () => {
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                         </p>
-                                        <p v-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'instant'" class="text-xs text-blue-700 dark:text-blue-300">
-                                            Instan - ( Rp 7.000 )
+                                        <p v-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'instant'" class="text-xs" :class="subtotal >= 150000 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-blue-700 dark:text-blue-300'">
+                                            Instan - ( {{ subtotal >= 150000 ? 'Gratis' : 'Rp 7.000' }} )
                                         </p>
-                                        <p v-else-if="selectedDeliveryType === 'delivery'" class="text-xs text-blue-700 dark:text-blue-300">
-                                            Reguler - (Gratis)
+                                        <p v-else-if="selectedDeliveryType === 'delivery'" class="text-xs" :class="subtotal >= 30000 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-blue-700 dark:text-blue-300'">
+                                            Reguler - ( {{ subtotal >= 30000 ? 'Gratis' : 'Rp 5.000' }} )
                                         </p>
                                         <p v-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'instant'" class="text-xs text-blue-600 dark:text-blue-400">
                                             1 jam sampai setelah lunas
@@ -494,7 +582,12 @@ const clearCart = () => {
                                 </span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span>Ongkir</span>
+                                <div class="flex flex-col">
+                                    <span>Ongkir</span>
+                                    <span v-if="selectedDeliveryType === 'delivery' && ((selectedDeliveryOption === 'instant' && subtotal >= 150000) || (selectedDeliveryOption === 'regular' && subtotal >= 30000))" class="text-xs text-green-600 dark:text-green-400">
+                                        🎉 Gratis ongkir!
+                                    </span>
+                                </div>
                                 <span class="font-semibold" :class="shippingFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'">
                                     {{ shippingFee === 0 ? 'Gratis' : formatCurrency(shippingFee) }}
                                 </span>
@@ -532,7 +625,7 @@ const clearCart = () => {
                 leave-from-class="opacity-100"
                 leave-to-class="opacity-0"
             >
-                <div v-if="showDeliveryModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div v-if="showDeliveryModal" class="fixed inset-0 z-40 overflow-y-auto">
                     <!-- Backdrop -->
                     <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeDeliveryModal"></div>
 
@@ -569,7 +662,7 @@ const clearCart = () => {
                                     <div class="flex gap-2">
                                         <button
                                             type="button"
-                                            @click="selectedDeliveryType = 'delivery'"
+                                            @click="selectDeliveryType('delivery')"
                                             :class="[
                                                 'flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition',
                                                 selectedDeliveryType === 'delivery'
@@ -581,15 +674,19 @@ const clearCart = () => {
                                         </button>
                                         <button
                                             type="button"
-                                            @click="selectedDeliveryType = 'pickup'"
+                                            @click="selectDeliveryType('pickup')"
+                                            :disabled="!isPickupAvailable"
                                             :class="[
                                                 'flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition',
-                                                selectedDeliveryType === 'pickup'
+                                                !isPickupAvailable
+                                                    ? 'cursor-not-allowed opacity-50 bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
+                                                    : selectedDeliveryType === 'pickup'
                                                     ? 'bg-blue-600 text-white shadow-md'
                                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                                             ]"
                                         >
                                             Ambil Toko
+                                            <span v-if="!isPickupAvailable" class="block text-xs mt-0.5">(Tutup)</span>
                                         </button>
                                     </div>
 
@@ -598,10 +695,13 @@ const clearCart = () => {
                                         <!-- Instant Delivery -->
                                         <button
                                             type="button"
-                                            @click="selectedDeliveryOption = 'instant'"
+                                            @click="selectDeliveryOption('instant')"
+                                            :disabled="!isInstantAvailable"
                                             :class="[
                                                 'w-full rounded-xl border-2 p-4 text-left transition',
-                                                selectedDeliveryOption === 'instant'
+                                                !isInstantAvailable
+                                                    ? 'cursor-not-allowed opacity-50 border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800'
+                                                    : selectedDeliveryOption === 'instant'
                                                     ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
                                                     : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600'
                                             ]"
@@ -619,20 +719,25 @@ const clearCart = () => {
                                                         </h4>
                                                         <span :class="[
                                                             'text-sm font-medium',
-                                                            selectedDeliveryOption === 'instant'
+                                                            subtotal >= 150000 
+                                                                ? 'text-green-600 dark:text-green-400'
+                                                                : selectedDeliveryOption === 'instant'
                                                                 ? 'text-blue-700 dark:text-blue-300'
                                                                 : 'text-gray-600 dark:text-gray-400'
                                                         ]">
-                                                            Rp 7.000
+                                                            {{ subtotal >= 150000 ? 'Gratis' : 'Rp 7.000' }}
                                                         </span>
                                                     </div>
                                                     <p :class="[
                                                         'mt-1 text-sm',
-                                                        selectedDeliveryOption === 'instant'
+                                                        !isInstantAvailable
+                                                            ? 'text-red-600 dark:text-red-400'
+                                                            : selectedDeliveryOption === 'instant'
                                                             ? 'text-blue-600 dark:text-blue-400'
                                                             : 'text-gray-500 dark:text-gray-400'
                                                     ]">
-                                                        1 jam sampai setelah lunas
+                                                        <span v-if="!isInstantAvailable">Tidak tersedia di luar jam operasional (07:00 - 21:00)</span>
+                                                        <span v-else>1 jam sampai setelah lunas</span>
                                                     </p>
                                                 </div>
                                                 <div v-if="selectedDeliveryOption === 'instant'" class="flex-shrink-0">
@@ -646,7 +751,7 @@ const clearCart = () => {
                                         <!-- Regular Delivery -->
                                         <button
                                             type="button"
-                                            @click="selectedDeliveryOption = 'regular'"
+                                            @click="selectDeliveryOption('regular')"
                                             :class="[
                                                 'w-full rounded-xl border-2 p-4 text-left transition',
                                                 selectedDeliveryOption === 'regular'
@@ -667,11 +772,13 @@ const clearCart = () => {
                                                         </h4>
                                                         <span :class="[
                                                             'text-sm font-medium',
-                                                            selectedDeliveryOption === 'regular'
+                                                            subtotal >= 30000 
                                                                 ? 'text-green-600 dark:text-green-400'
+                                                                : selectedDeliveryOption === 'regular'
+                                                                ? 'text-blue-600 dark:text-blue-400'
                                                                 : 'text-gray-600 dark:text-gray-400'
                                                         ]">
-                                                            Gratis
+                                                            {{ subtotal >= 30000 ? 'Gratis' : 'Rp 5.000' }}
                                                         </span>
                                                     </div>
                                                     <p :class="[
@@ -796,15 +903,19 @@ const clearCart = () => {
                                             <button
                                                 type="button"
                                                 @click="selectDeliveryDate('today')"
+                                                :disabled="!isTodayAvailable"
                                                 :class="[
                                                     'flex flex-col items-center rounded-xl border-2 px-4 py-3 transition',
-                                                    selectedDeliveryDate === 'today'
+                                                    !isTodayAvailable
+                                                        ? 'cursor-not-allowed opacity-50 border-gray-200 bg-gray-100 text-gray-500 dark:border-gray-700 dark:bg-gray-800'
+                                                        : selectedDeliveryDate === 'today'
                                                         ? 'border-blue-500 bg-blue-500 text-white dark:border-blue-400 dark:bg-blue-500'
                                                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
                                                 ]"
                                             >
                                                 <span class="text-xs font-medium">{{ getDateLabel('today').label }}</span>
                                                 <span class="mt-1 text-lg font-bold">{{ getDateLabel('today').date }} {{ getDateLabel('today').month }}</span>
+                                                <span v-if="!isTodayAvailable" class="mt-1 text-[10px] text-red-600 dark:text-red-400">Tutup</span>
                                             </button>
                                             <button
                                                 type="button"

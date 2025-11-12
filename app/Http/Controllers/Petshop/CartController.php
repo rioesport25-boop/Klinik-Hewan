@@ -333,7 +333,16 @@ class CartController extends Controller
             // Delete order if payment creation failed
             $order->delete();
             
-            return back()->with('error', 'Gagal membuat pembayaran: ' . $e->getMessage());
+            // Log error for debugging
+            \Log::error('Midtrans Snap Token Error', [
+                'message' => $e->getMessage(),
+                'order_number' => $order->order_number,
+                'user_id' => auth()->id(),
+            ]);
+            
+            return back()->withErrors([
+                'message' => 'Gagal membuat pembayaran: ' . $e->getMessage()
+            ]);
         }
     }
 

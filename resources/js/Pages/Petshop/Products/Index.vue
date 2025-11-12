@@ -115,6 +115,12 @@ const nextSlide = () => {
     }
 };
 
+const prevSlide = () => {
+    if (props.headerImages.length > 0) {
+        currentSlide.value = currentSlide.value === 0 ? props.headerImages.length - 1 : currentSlide.value - 1;
+    }
+};
+
 const goToSlide = (index) => {
     currentSlide.value = index;
 };
@@ -138,53 +144,80 @@ onUnmounted(() => {
 
     <PublicLayout>
         <!-- Header dengan Image Slider -->
-        <div v-if="headerImages.length > 0" class="relative min-h-[400px] overflow-hidden bg-gray-900">
-            <!-- Slider Background -->
-            <div class="absolute inset-0">
-                <div
-                    v-for="(image, index) in headerImages"
-                    :key="index"
-                    class="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-                    :class="currentSlide === index ? 'opacity-100' : 'opacity-0'"
-                >
-                    <div
-                        class="h-full w-full bg-cover bg-center bg-no-repeat"
-                        :style="{ backgroundImage: `url(${image})` }"
-                    ></div>
-                </div>
-                <!-- Overlay -->
-                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60"></div>
-            </div>
-
-            <!-- Header Content -->
-            <div class="relative z-10 flex h-full items-center py-20 sm:py-24">
-                <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
-                    <div class="text-center">
-                        <p class="text-sm font-semibold uppercase tracking-wide text-amber-400 drop-shadow-lg">
-                            Petshop Klinik Hewan
-                        </p>
-                        <h1 class="mt-2 text-3xl font-bold text-white drop-shadow-lg sm:text-4xl md:text-5xl" data-aos="fade-up">
-                            Produk &amp; Perlengkapan Hewan Kesayangan
-                        </h1>
-                        <p class="mx-auto mt-3 max-w-2xl text-base text-white/90 drop-shadow-md sm:text-lg" data-aos="fade-up" data-aos-delay="100">
-                            Temukan makanan, vitamin, dan perlengkapan terbaik untuk hewan kesayangan Anda. Semua produk dipilih oleh dokter hewan kami.
-                        </p>
-                        <div class="mt-6 inline-block rounded-2xl border border-amber-400/50 bg-amber-500/20 px-5 py-3 text-sm font-medium text-amber-100 shadow-lg backdrop-blur-sm" data-aos="fade-up" data-aos-delay="200">
-                            {{ productCountText }}
+        <div v-if="headerImages.length > 0" class="bg-gray-50 py-8 dark:bg-gray-900">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <!-- Card Container -->
+                <div class="relative overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-800">
+                    <!-- Slider Container with Swiper Effect -->
+                    <div class="relative h-[400px] overflow-hidden bg-gray-50 dark:bg-gray-900">
+                        <!-- Slides Wrapper -->
+                        <div class="relative h-full w-full">
+                            <div
+                                v-for="(image, index) in headerImages"
+                                :key="index"
+                                class="absolute inset-0 flex items-center justify-center transition-transform duration-500 ease-in-out"
+                                :style="{
+                                    transform: `translateX(${(index - currentSlide) * 100}%)`
+                                }"
+                            >
+                                <img
+                                    :src="image"
+                                    :alt="'Slide ' + (index + 1)"
+                                    class="h-full w-full object-contain p-4"
+                                />
+                            </div>
                         </div>
 
-                        <!-- Slider Indicators (hanya tampil jika lebih dari 1 gambar) -->
-                        <div v-if="headerImages.length > 1" class="mt-8 flex justify-center space-x-3">
+                        <!-- Navigation Arrows -->
+                        <div v-if="headerImages.length > 1">
+                            <!-- Previous Button -->
                             <button
-                                v-for="(image, index) in headerImages"
-                                :key="'indicator-' + index"
-                                @click="goToSlide(index)"
-                                class="h-3 w-3 rounded-full transition-all duration-300"
-                                :class="currentSlide === index ? 'bg-amber-400 w-8' : 'bg-white bg-opacity-50 hover:bg-opacity-75'"
-                                :aria-label="'Go to slide ' + (index + 1)"
-                            ></button>
+                                @click="prevSlide"
+                                class="absolute left-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-800 shadow-lg transition hover:bg-white hover:scale-110 focus:outline-none"
+                                aria-label="Previous slide"
+                            >
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+
+                            <!-- Next Button -->
+                            <button
+                                @click="nextSlide"
+                                class="absolute right-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-800 shadow-lg transition hover:bg-white hover:scale-110 focus:outline-none"
+                                aria-label="Next slide"
+                            >
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
+
+                    <!-- Slider Indicators (hanya tampil jika lebih dari 1 gambar) -->
+                    <div v-if="headerImages.length > 1" class="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 space-x-2">
+                        <button
+                            v-for="(image, index) in headerImages"
+                            :key="'indicator-' + index"
+                            @click="goToSlide(index)"
+                            class="h-2.5 rounded-full transition-all duration-300"
+                            :class="currentSlide === index ? 'w-8 bg-amber-500' : 'w-2.5 bg-gray-400 hover:bg-gray-600'"
+                            :aria-label="'Go to slide ' + (index + 1)"
+                        ></button>
+                    </div>
+                </div>
+
+                <!-- Header Content & Product Count Badge -->
+                <div class="mt-8 text-center">
+                    <p class="text-sm font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                        Petshop Klinik Hewan
+                    </p>
+                    <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl md:text-5xl" data-aos="fade-up">
+                        Produk &amp; Perlengkapan Hewan Kesayangan
+                    </h1>
+                    <p class="mx-auto mt-3 max-w-2xl text-base text-gray-600 dark:text-gray-300 sm:text-lg" data-aos="fade-up" data-aos-delay="100">
+                        Temukan makanan, vitamin, dan perlengkapan terbaik untuk hewan kesayangan Anda. Semua produk dipilih oleh dokter hewan kami.
+                    </p>
                 </div>
             </div>
         </div>
@@ -203,9 +236,6 @@ onUnmounted(() => {
                         <p class="mt-3 max-w-2xl text-base text-gray-600 dark:text-gray-300">
                             Temukan makanan, vitamin, dan perlengkapan terbaik untuk hewan kesayangan Anda. Semua produk dipilih oleh dokter hewan kami.
                         </p>
-                    </div>
-                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-medium text-amber-700 shadow-sm dark:border-amber-500/40 dark:bg-amber-900/40 dark:text-amber-100">
-                        {{ productCountText }}
                     </div>
                 </div>
             </div>
