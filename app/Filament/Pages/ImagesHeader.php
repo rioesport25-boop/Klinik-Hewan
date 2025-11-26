@@ -12,7 +12,7 @@ use Filament\Pages\Page;
 class ImagesHeader extends Page
 {
     use \Filament\Forms\Concerns\InteractsWithForms;
-    
+
     protected static ?string $navigationIcon = 'heroicon-o-photo';
 
     protected static string $view = 'filament.pages.images-header';

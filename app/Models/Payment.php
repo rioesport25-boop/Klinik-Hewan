@@ -100,6 +100,23 @@ class Payment extends Model
 
         // Update order status
         $this->order->markAsPaid();
+
+        // Create notification for successful payment
+        $this->order->user->notifications()->create([
+            'type' => 'payment_success',
+            'title' => 'Pembayaran Berhasil',
+            'message' => "Pembayaran untuk pesanan {$this->order->order_number} telah berhasil. Pesanan Anda sedang diproses.",
+            'data' => [
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'total' => $this->order->total,
+                'items_count' => $this->order->items->count(),
+                'product_image' => $this->order->items->first()->product->images->first()?->image_path
+                    ? asset('storage/' . $this->order->items->first()->product->images->first()->image_path)
+                    : null,
+                'product_name' => $this->order->items->first()->product->name ?? '',
+            ],
+        ]);
     }
 
     public function markAsFailed()
@@ -128,21 +145,21 @@ class Payment extends Model
 
     public function isQris()
     {
-        return strtoupper($this->midtrans_payment_type ?? '') === 'QRIS' || 
-               strtoupper($this->payment_channel ?? '') === 'QRIS';
+        return strtoupper($this->midtrans_payment_type ?? '') === 'QRIS' ||
+            strtoupper($this->payment_channel ?? '') === 'QRIS';
     }
 
     public function isVirtualAccount()
     {
         return in_array(strtoupper($this->midtrans_payment_type ?? ''), ['BANK_TRANSFER', 'ECHANNEL']) ||
-               str_contains(strtoupper($this->payment_channel ?? ''), 'VA') ||
-               !empty($this->va_number);
+            str_contains(strtoupper($this->payment_channel ?? ''), 'VA') ||
+            !empty($this->va_number);
     }
 
     public function isEwallet()
     {
         return in_array(strtoupper($this->midtrans_payment_type ?? ''), ['GOPAY', 'SHOPEEPAY']) ||
-               in_array(strtoupper($this->payment_channel ?? ''), ['GOPAY', 'SHOPEEPAY']);
+            in_array(strtoupper($this->payment_channel ?? ''), ['GOPAY', 'SHOPEEPAY']);
     }
 
     public function isCreditCard()

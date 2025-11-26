@@ -20,26 +20,34 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Illuminate\Support\Facades\Schema;
 
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $footerSettings = FooterSetting::getSettings();
+        $brandLogo = null;
+        $darkModeBrandLogo = null;
 
-        $brandLogo = $footerSettings->logo
-            ? asset('storage/' . $footerSettings->logo)
-            : null;
+        // Only get settings if table exists
+        if (Schema::hasTable('footer_settings')) {
+            $footerSettings = FooterSetting::getSettings();
 
-        $darkModeBrandLogo = $footerSettings->logo_dark
-            ? asset('storage/' . $footerSettings->logo_dark)
-            : null;
+            $brandLogo = $footerSettings->logo
+                ? asset('storage/' . $footerSettings->logo)
+                : null;
+
+            $darkModeBrandLogo = $footerSettings->logo_dark
+                ? asset('storage/' . $footerSettings->logo_dark)
+                : null;
+        }
 
         return $panel
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login(Login::class)
+            ->login()
+            ->authGuard('web')
             ->brandLogo($brandLogo)
             ->darkModeBrandLogo($darkModeBrandLogo)
             ->brandLogoHeight('3rem')

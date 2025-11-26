@@ -1,6 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { showConfirm, showSuccess } from '@/Plugins/sweetalert';
 
 defineProps({
     favorites: {
@@ -8,13 +9,40 @@ defineProps({
         default: () => [],
     },
 });
+
+const removeFavorite = (favoriteId) => {
+    showConfirm({
+        title: 'Hapus dari Favorit?',
+        text: 'Apakah Anda yakin ingin menghapus produk ini dari favorit?',
+        icon: 'warning',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('profile.favorites.destroy', favoriteId), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    showSuccess('Produk berhasil dihapus dari favorit');
+                }
+            });
+        }
+    });
+};
+
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+    }).format(value);
+};
 </script>
 
 <template>
-    <AppLayout title="Barang Favorit">
+    <AppLayout title="Produk Favorit">
         <template #header>
             <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                Barang Favorit
+                Produk Favorit
             </h2>
         </template>
 
@@ -55,7 +83,80 @@ defineProps({
                         </div>
 
                         <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            <!-- Favorite product cards will be displayed here -->
+                            <div
+                                v-for="favorite in favorites"
+                                :key="favorite.id"
+                                class="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                            >
+                                <!-- Product Image -->
+                                <Link
+                                    :href="route('petshop.product.show', favorite.product.slug)"
+                                    class="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-700"
+                                >
+                                    <img
+                                        v-if="favorite.product.image"
+                                        :src="favorite.product.image"
+                                        :alt="favorite.product.name"
+                                        class="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    />
+                                    <div v-else class="flex size-full items-center justify-center">
+                                        <svg class="size-16 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                        </svg>
+                                    </div>
+
+                                    <!-- Stock Badge -->
+                                    <div v-if="favorite.product.stock <= 0" class="absolute inset-0 flex items-center justify-center bg-black/50">
+                                        <span class="rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white">
+                                            Stok Habis
+                                        </span>
+                                    </div>
+                                </Link>
+
+                                <!-- Remove Button -->
+                                <button
+                                    type="button"
+                                    @click="removeFavorite(favorite.id)"
+                                    class="absolute right-2 top-2 z-10 rounded-full bg-white/90 p-2 text-red-500 shadow-md transition hover:bg-red-50 dark:bg-gray-800/90 dark:hover:bg-red-900/30"
+                                >
+                                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                                    </svg>
+                                </button>
+
+                                <!-- Product Info -->
+                                <div class="flex flex-1 flex-col p-4">
+                                    <div class="mb-2">
+                                        <span v-if="favorite.product.category" class="text-xs font-medium text-amber-600 dark:text-amber-400">
+                                            {{ favorite.product.category.name }}
+                                        </span>
+                                    </div>
+
+                                    <Link
+                                        :href="route('petshop.product.show', favorite.product.slug)"
+                                        class="mb-2 line-clamp-2 text-sm font-semibold text-gray-900 hover:text-amber-600 dark:text-white dark:hover:text-amber-400"
+                                    >
+                                        {{ favorite.product.name }}
+                                    </Link>
+
+                                    <div class="mt-auto">
+                                        <p class="text-lg font-bold text-gray-900 dark:text-white">
+                                            {{ formatCurrency(favorite.product.price) }}
+                                        </p>
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Ditambahkan {{ favorite.created_at }}
+                                        </p>
+                                    </div>
+
+                                    <!-- View Product Button -->
+                                    <Link
+                                        :href="route('petshop.product.show', favorite.product.slug)"
+                                        class="mt-3 rounded-lg bg-amber-600 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                    >
+                                        Lihat Produk
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

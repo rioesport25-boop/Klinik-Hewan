@@ -1,0 +1,33 @@
+/* Fix for Filament admin panel z-index issues */
+/* Ensure Filament panels are always on top */
+.fi-body,
+.fi-topbar,
+.fi-sidebar,
+.fi-main,
+[data-filament-main],
+[data-filament-sidebar],
+[data-filament-topbar] {
+    position: relative;
+    z-index: 9999 !important;
+}
+
+/* Filament modal backdrop should be highest */
+.fi-modal-backdrop,
+[data-filament-modal-backdrop] {
+    z-index: 9998 !important;
+}
+
+/* Ensure no overlay blocks Filament */
+body:has([data-filament-main]) .fixed.inset-0 {
+    z-index: 0 !important;
+}
+
+/* Prevent any teleported elements from blocking Filament */
+body:has([data-filament-main]) > div:not([data-filament-main]):not([data-filament-sidebar]):not([data-filament-topbar]) {
+    pointer-events: none !important;
+}
+
+/* But allow interaction within those elements' children */
+body:has([data-filament-main]) > div:not([data-filament-main]):not([data-filament-sidebar]):not([data-filament-topbar]) * {
+    pointer-events: auto;
+}

@@ -16,13 +16,22 @@ const props = defineProps({
 
 // Parallax effect
 const parallaxOffset = ref(0);
+let ticking = false;
+
+const updateParallax = () => {
+    parallaxOffset.value = window.pageYOffset * 0.5; // Parallax speed (0.5 = half speed)
+    ticking = false;
+};
 
 const handleScroll = () => {
-    parallaxOffset.value = window.pageYOffset * 0.5; // Parallax speed (0.5 = half speed)
+    if (!ticking) {
+        requestAnimationFrame(updateParallax);
+        ticking = true;
+    }
 };
 
 onMounted(() => {
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
 });
 
 onUnmounted(() => {
@@ -35,12 +44,12 @@ onUnmounted(() => {
 
     <PublicLayout>
         <!-- Header Section with Gradient Overlay -->
-        <div class="relative min-h-[500px] overflow-hidden bg-gray-800">
+        <div class="relative min-h-[500px] overflow-hidden bg-[rgb(249,250,251)] dark:bg-gray-800">
             <!-- Parallax Background Image (if uploaded) -->
             <div
                 v-if="headerImage"
-                class="absolute inset-0"
-                :style="{ transform: `translateY(${parallaxOffset}px)` }"
+                class="absolute inset-0 will-change-transform"
+                :style="{ transform: `translate3d(0, ${parallaxOffset}px, 0)` }"
             >
                 <div
                     class="absolute inset-0 h-[120%] w-full bg-cover bg-center bg-no-repeat"
@@ -49,16 +58,16 @@ onUnmounted(() => {
             </div>
 
             <!-- Gradient Overlay -->
-            <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-[rgb(249,250,251)] via-[rgb(249,250,251)]/40 to-transparent dark:from-gray-900 dark:via-gray-900/40 dark:to-transparent"></div>
 
             <!-- Content -->
             <div class="relative z-10 flex h-full items-center py-20 sm:py-24">
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div class="text-center">
-                        <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl" data-aos="fade-up">
+                        <h1 class="text-4xl font-bold tracking-tight text-amber-600 dark:text-amber-400 sm:text-5xl md:text-6xl" data-aos="fade-up">
                             Blog Klinik Hewan
                         </h1>
-                        <p class="mx-auto mt-3 max-w-md text-base text-white/90 sm:text-lg md:mt-5 md:max-w-3xl md:text-xl" data-aos="fade-up" data-aos-delay="100">
+                        <p class="mx-auto mt-3 max-w-md text-base text-gray-700 dark:text-white/90 sm:text-lg md:mt-5 md:max-w-3xl md:text-xl" data-aos="fade-up" data-aos-delay="100">
                             Artikel, tips, dan informasi seputar kesehatan dan perawatan hewan kesayangan Anda
                         </p>
                     </div>

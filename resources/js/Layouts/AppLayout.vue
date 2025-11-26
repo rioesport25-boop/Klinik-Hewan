@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
@@ -9,10 +9,15 @@ import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import ThemeSwitch from '@/Components/ThemeSwitch.vue';
 import Toast from '@/Components/Toast.vue';
+import NotificationDropdown from '@/Components/NotificationDropdown.vue';
+import NotificationPopup from '@/Components/NotificationPopup.vue';
 
 defineProps({
     title: String,
 });
+
+const page = usePage();
+const cartSummary = computed(() => page.props.cartSummary || { total_items: 0, subtotal: 0 });
 
 const showingNavigationDropdown = ref(false);
 
@@ -53,32 +58,46 @@ const logout = () => {
                                 <NavLink :href="route('home')" :active="route().current('home')">
                                     Home
                                 </NavLink>
+                                <NavLink :href="route('gallery')" :active="route().current('gallery')">
+                                    Gallery
+                                </NavLink>
                                 <NavLink :href="route('petshop.index')" :active="route().current('petshop.*')">
                                     Petshop
                                 </NavLink>
                                 <NavLink :href="route('blog')" :active="route().current('blog')">
                                     Blog
                                 </NavLink>
-                                <NavLink :href="route('gallery')" :active="route().current('gallery')">
-                                    Gallery
-                                </NavLink>
                             </div>
                         </div>
 
                         <div class="hidden sm:flex sm:items-center sm:ms-6">
                             <!-- Cart Icon -->
-                            <Link :href="route('petshop.cart.show')" class="relative p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            <Link
+                                :href="route('petshop.cart.show')"
+                                class="relative me-2 rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
-                                <span v-if="$page.props.cart && $page.props.cart.items_count > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full size-5 flex items-center justify-center">
-                                    {{ $page.props.cart.items_count }}
+                                <span
+                                    v-if="cartSummary.total_items > 0"
+                                    class="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white"
+                                >
+                                    {{ cartSummary.total_items > 9 ? '9+' : cartSummary.total_items }}
                                 </span>
                             </Link>
 
-                            <!-- Dark Mode Toggle -->
-                            <ThemeSwitch />
+                            <!-- Notification Bell (2px from Cart) -->
+                            <div class="ms-0.5">
+                                <NotificationDropdown />
+                            </div>
 
+                            <!-- Dark Mode Toggle (12px from Notification) -->
+                            <div class="ms-3">
+                                <ThemeSwitch />
+                            </div>
+
+                            <!-- Profile (12px from Dark Mode) -->
                             <div class="ms-3 relative">
                                 <!-- Teams Dropdown -->
                                 <Dropdown v-if="$page.props.jetstream.hasTeamFeatures" align="right" width="60">
@@ -170,8 +189,16 @@ const logout = () => {
                                             Daftar Alamat
                                         </DropdownLink>
 
+                                        <DropdownLink :href="route('profile.transactions.index')">
+                                            Daftar Transaksi
+                                        </DropdownLink>
+
                                         <DropdownLink :href="route('profile.favorites.index')">
-                                            Barang Favorit
+                                            Produk Favorit
+                                        </DropdownLink>
+
+                                        <DropdownLink :href="route('booking.history')">
+                                            Riwayat Booking
                                         </DropdownLink>
 
                                         <DropdownLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')">
@@ -226,14 +253,14 @@ const logout = () => {
                         <ResponsiveNavLink :href="route('home')" :active="route().current('home')">
                             Home
                         </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('gallery')" :active="route().current('gallery')">
+                            Gallery
+                        </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('petshop.index')" :active="route().current('petshop.*')">
                             Petshop
                         </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('blog')" :active="route().current('blog')">
                             Blog
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('gallery')" :active="route().current('gallery')">
-                            Gallery
                         </ResponsiveNavLink>
                     </div>
 
@@ -263,8 +290,12 @@ const logout = () => {
                                 Daftar Alamat
                             </ResponsiveNavLink>
 
+                            <ResponsiveNavLink :href="route('profile.transactions.index')" :active="route().current('profile.transactions.*')">
+                                Daftar Transaksi
+                            </ResponsiveNavLink>
+
                             <ResponsiveNavLink :href="route('profile.favorites.index')" :active="route().current('profile.favorites.index')">
-                                Barang Favorit
+                                Produk Favorit
                             </ResponsiveNavLink>
 
                             <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')" :active="route().current('api-tokens.index')">
@@ -334,6 +365,9 @@ const logout = () => {
                 <slot />
             </main>
         </div>
+
+        <!-- Notification Popup for Loyalty Points -->
+        <NotificationPopup v-if="$page.props.auth.user" />
 
         <!-- Toast Notification -->
         <Toast />

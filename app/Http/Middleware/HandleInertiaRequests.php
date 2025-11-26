@@ -9,8 +9,19 @@ use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    public function __construct(private readonly CartService $cartService)
+    public function __construct(private readonly CartService $cartService) {}
+
+    /**
+     * Handle the incoming request.
+     */
+    public function handle(Request $request, \Closure $next)
     {
+        // Skip Inertia middleware entirely for Filament admin routes
+        if ($request->is('admin') || $request->is('admin/*')) {
+            return $next($request);
+        }
+
+        return parent::handle($request, $next);
     }
 
     /**
@@ -41,16 +52,38 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Skip Inertia sharing for Filament admin routes
+        if ($request->is('admin') || $request->is('admin/*')) {
+            return parent::share($request);
+        }
+
         $footerSettings = FooterSetting::getSettings();
         $cartSummary = $this->cartService->transformCart(
             $this->cartService->getCart(createIfMissing: false, withRelations: true),
             summary: true
         );
 
+        // Get user's favorite product IDs for easy checking
+        $favoriteProductIds = [];
+        $unreadNotificationsCount = 0;
+
+        if ($request->user()) {
+            $favoriteProductIds = $request->user()
+                ->favorites()
+                ->pluck('product_id')
+                ->toArray();
+
+            $unreadNotificationsCount = $request->user()
+                ->unreadNotifications()
+                ->count();
+        }
+
         return [
             ...parent::share($request),
             'appLogo' => $footerSettings->logo ? asset('storage/' . $footerSettings->logo) : null,
             'appLogoDark' => $footerSettings->logo_dark ? asset('storage/' . $footerSettings->logo_dark) : null,
+            'favoriteProductIds' => $favoriteProductIds,
+            'unreadNotificationsCount' => $unreadNotificationsCount,
             'footerSettings' => [
                 'about_text' => $footerSettings->about_text,
                 'contact_phone' => $footerSettings->contact_phone,

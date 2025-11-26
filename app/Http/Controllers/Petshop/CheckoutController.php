@@ -17,8 +17,7 @@ class CheckoutController extends Controller
     public function __construct(
         private readonly CartService $cartService,
         private readonly MidtransService $midtransService
-    ) {
-    }
+    ) {}
 
     /**
      * Display the checkout form.
@@ -36,7 +35,7 @@ class CheckoutController extends Controller
         $cartData = $this->cartService->transformCart($cart, summary: false);
 
         $user = auth()->user();
-        
+
         // Get default address if available
         $defaultAddress = $user?->addresses()->where('is_default', true)->first();
 
@@ -167,7 +166,6 @@ class CheckoutController extends Controller
                     'total' => $order->total,
                 ],
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Checkout Error: ' . $e->getMessage());

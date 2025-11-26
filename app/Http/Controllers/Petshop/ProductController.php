@@ -130,7 +130,7 @@ class ProductController extends Controller
 
         $settings = \App\Models\FooterSetting::first();
         $petshopHeaderImages = $settings?->petshop_header_images ?? [];
-        
+
         // Convert paths to full URLs
         $headerImagesUrls = collect($petshopHeaderImages)->map(function ($image) {
             return asset('storage/' . $image);
@@ -218,7 +218,7 @@ class ProductController extends Controller
                     'price_adjustment' => (float) $variant->price_adjustment,
                     'final_price' => (float) $variant->final_price,
                 ];
-            })->filter(fn ($variant) => $variant['is_active'])->values(),
+            })->filter(fn($variant) => $variant['is_active'])->values(),
             'reviews' => $product->reviews->map(function ($review) {
                 return [
                     'id' => $review->id,

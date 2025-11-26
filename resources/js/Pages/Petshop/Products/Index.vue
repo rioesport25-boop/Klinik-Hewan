@@ -5,6 +5,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, onMounted, onUnmounted } from 'vue';
+import { showConfirm } from '@/Plugins/sweetalert';
 
 const props = defineProps({
     products: {
@@ -73,15 +74,23 @@ const resetFilters = () => {
 const handleAddToCart = (product) => {
     // Check if user is authenticated
     if (!page.props.auth?.user) {
-        // Show alert and redirect to login
-        if (confirm('Anda harus login terlebih dahulu untuk menambahkan produk ke keranjang. Login sekarang?')) {
-            router.visit(route('login'), {
-                onBefore: () => {
-                    // Store the current page as intended URL
-                    sessionStorage.setItem('intended_url', window.location.href);
-                }
-            });
-        }
+        // Show dialog and redirect to login
+        showConfirm({
+            title: 'Login Diperlukan',
+            text: 'Anda harus login terlebih dahulu untuk menambahkan produk ke keranjang. Login sekarang?',
+            icon: 'info',
+            confirmButtonText: 'Ya, Login',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.visit(route('login'), {
+                    onBefore: () => {
+                        // Store the current page as intended URL
+                        sessionStorage.setItem('intended_url', window.location.href);
+                    }
+                });
+            }
+        });
         return;
     }
 

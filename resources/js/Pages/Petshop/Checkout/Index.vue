@@ -6,6 +6,8 @@ import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, onMounted, ref } from 'vue';
 
+const page = usePage();
+
 const props = defineProps({
     cart: {
         type: Object,
@@ -25,7 +27,6 @@ const props = defineProps({
     },
 });
 
-const page = usePage();
 const flash = computed(() => page.props.flash || {});
 
 // Log flash data for debugging
@@ -174,7 +175,7 @@ const submitCheckout = () => {
                     clearInterval(checkSnap);
                     if (!window.snap) {
                         console.error('Snap not loaded after 5 seconds');
-                        alert('Gagal memuat pembayaran. Silakan refresh halaman.');
+                        page.props.flash = { error: 'Gagal memuat pembayaran. Silakan refresh halaman.' };
                     }
                 }, 5000);
             } else {

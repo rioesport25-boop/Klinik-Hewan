@@ -15,8 +15,20 @@ class LoginResponse implements LoginResponseContract
      */
     public function toResponse($request)
     {
-        // Jetstream/Fortify login selalu redirect ke halaman user
-        // Admin harus login melalui /admin/login untuk akses Filament
-        return redirect()->intended(route('home'));
+        // Get the authenticated user
+        $user = Auth::user();
+        
+        // Check if user is admin (has is_admin flag)
+        if ($user && $user->is_admin) {
+            // Admin should use /admin/login instead
+            // But if they logged in via regular login, redirect to admin
+            return redirect()->route('filament.admin.pages.dashboard');
+        }
+        
+        // Clear any intended URL to prevent redirect to dashboard
+        $request->session()->forget('url.intended');
+        
+        // Regular users always redirect to home page
+        return redirect()->route('home');
     }
 }

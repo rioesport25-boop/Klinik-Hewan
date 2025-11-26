@@ -12,9 +12,7 @@ use Inertia\Inertia;
 
 class CartController extends Controller
 {
-    public function __construct(private readonly CartService $cartService)
-    {
-    }
+    public function __construct(private readonly CartService $cartService) {}
 
     /**
      * Display the cart page.
@@ -22,7 +20,7 @@ class CartController extends Controller
     public function show(Request $request)
     {
         $cart = $this->cartService->getCart(createIfMissing: true);
-        
+
         // Get default shipping address if user is authenticated
         $defaultAddress = null;
         if ($user = auth()->user()) {
@@ -170,6 +168,39 @@ class CartController extends Controller
     }
 
     /**
+     * Remove multiple items from the cart.
+     */
+    public function removeMultiple(Request $request)
+    {
+        $validated = $request->validate([
+            'item_ids' => ['required', 'array'],
+            'item_ids.*' => ['required', 'integer'],
+        ]);
+
+        $cart = $this->cartService->getCart(createIfMissing: false);
+
+        abort_if(! $cart, 404);
+
+        foreach ($validated['item_ids'] as $itemId) {
+            $cart->removeItem($itemId);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => count($validated['item_ids']) . ' produk berhasil dihapus dari keranjang.',
+                'cart' => $this->cartService->transformCart(
+                    $this->cartService->getCart(createIfMissing: false),
+                    summary: false
+                ),
+            ]);
+        }
+
+        return redirect()
+            ->route('petshop.cart.show')
+            ->with('success', count($validated['item_ids']) . ' produk berhasil dihapus dari keranjang.');
+    }
+
+    /**
      * Empty the current cart.
      */
     public function clear(Request $request)
@@ -201,6 +232,8 @@ class CartController extends Controller
     public function checkout(Request $request)
     {
         $validated = $request->validate([
+            'selected_items' => ['required', 'array', 'min:1'],
+            'selected_items.*' => ['required', 'integer', 'exists:cart_items,id'],
             'delivery_type' => ['required', 'in:delivery,pickup'],
             'delivery_option' => ['nullable', 'in:instant,regular'],
             'delivery_date' => ['nullable', 'in:today,tomorrow'],
@@ -211,6 +244,7 @@ class CartController extends Controller
             'shipping_address.phone_number' => ['required_if:delivery_type,delivery', 'string'],
             'shipping_address.full_address' => ['required_if:delivery_type,delivery', 'string'],
             'shipping_address.city' => ['required_if:delivery_type,delivery', 'string'],
+            'shipping_address.district' => ['nullable', 'string'],
             'shipping_address.province' => ['required_if:delivery_type,delivery', 'string'],
             'shipping_address.postal_code' => ['required_if:delivery_type,delivery', 'string'],
         ]);
@@ -221,13 +255,20 @@ class CartController extends Controller
             return back()->with('error', 'Keranjang Anda kosong.');
         }
 
+        // Get only selected items
+        $selectedItems = $cart->items->whereIn('id', $validated['selected_items']);
+
+        if ($selectedItems->isEmpty()) {
+            return back()->with('error', 'Silakan pilih minimal satu produk untuk checkout.');
+        }
+
         // Validate shipping address for delivery
         if ($validated['delivery_type'] === 'delivery' && empty($validated['shipping_address'])) {
             return back()->with('error', 'Silakan tambahkan alamat pengiriman terlebih dahulu.');
         }
 
-        // Calculate totals
-        $subtotal = $cart->total; // Using cart's total accessor
+        // Calculate totals from selected items only
+        $subtotal = $selectedItems->sum('subtotal');
         $shippingCost = $validated['shipping_fee'];
         $totalAmount = $subtotal + $shippingCost;
 
@@ -238,7 +279,7 @@ class CartController extends Controller
         $shippingProvince = '';
         $shippingPostalCode = '';
         $customerPhone = '';
-        
+
         if ($validated['delivery_type'] === 'delivery' && !empty($shippingAddressData)) {
             $shippingAddress = json_encode($shippingAddressData);
             $shippingCity = $shippingAddressData['city'];
@@ -267,8 +308,8 @@ class CartController extends Controller
             'delivery_time' => $validated['delivery_time'],
         ]);
 
-        // Create order items
-        foreach ($cart->items as $item) {
+        // Create order items from selected items only
+        foreach ($selectedItems as $item) {
             $order->items()->create([
                 'product_id' => $item->product_id,
                 'variant_id' => $item->variant_id,
@@ -296,7 +337,7 @@ class CartController extends Controller
                 'email' => auth()->user()->email,
                 'phone' => $customerPhone ?: '',
             ],
-            'item_details' => $cart->items->map(function ($item) {
+            'item_details' => $selectedItems->map(function ($item) {
                 return [
                     'id' => $item->product_id,
                     'price' => (int) $item->price,
@@ -318,12 +359,31 @@ class CartController extends Controller
 
         try {
             $snapToken = \Midtrans\Snap::getSnapToken($params);
-            
+
             // Save snap token to order
             $order->update(['snap_token' => $snapToken]);
 
-            // Clear cart after successful order creation
-            $cart->clear();
+            // Remove only selected items from cart
+            foreach ($selectedItems as $item) {
+                $item->delete();
+            }
+
+            // Create notification for user
+            auth()->user()->notifications()->create([
+                'type' => 'order_placed',
+                'title' => 'Pesanan Berhasil Dibuat',
+                'message' => "Pesanan {$order->order_number} berhasil dibuat. Silakan selesaikan pembayaran Anda.",
+                'data' => [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'total' => $order->total,
+                    'items_count' => $order->items->count(),
+                    'product_image' => $order->items->first()->product->images->first()?->image_path
+                        ? asset('storage/' . $order->items->first()->product->images->first()->image_path)
+                        : null,
+                    'product_name' => $order->items->first()->product->name ?? '',
+                ],
+            ]);
 
             return back()->with([
                 'snap_token' => $snapToken,
@@ -332,14 +392,14 @@ class CartController extends Controller
         } catch (\Exception $e) {
             // Delete order if payment creation failed
             $order->delete();
-            
+
             // Log error for debugging
             \Log::error('Midtrans Snap Token Error', [
                 'message' => $e->getMessage(),
                 'order_number' => $order->order_number,
                 'user_id' => auth()->id(),
             ]);
-            
+
             return back()->withErrors([
                 'message' => 'Gagal membuat pembayaran: ' . $e->getMessage()
             ]);
@@ -352,7 +412,7 @@ class CartController extends Controller
     public function paymentStatus(Request $request)
     {
         $orderNumber = $request->get('order_number');
-        
+
         if (!$orderNumber) {
             return redirect()->route('petshop.products.index')
                 ->with('error', 'Nomor pesanan tidak ditemukan.');
@@ -369,9 +429,9 @@ class CartController extends Controller
         try {
             \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
             \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
-            
+
             $status = \Midtrans\Transaction::status($orderNumber);
-            
+
             // Update order status based on Midtrans response
             if ($status->transaction_status == 'settlement' || $status->transaction_status == 'capture') {
                 $order->update([

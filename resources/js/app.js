@@ -10,6 +10,9 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
+// Import SweetAlert2
+import SweetAlert from './Plugins/sweetalert';
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
@@ -19,6 +22,9 @@ createInertiaApp({
         const app = createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue);
+
+        // Make SweetAlert available globally
+        app.config.globalProperties.$swal = SweetAlert;
 
         // Initialize AOS
         app.mixin({

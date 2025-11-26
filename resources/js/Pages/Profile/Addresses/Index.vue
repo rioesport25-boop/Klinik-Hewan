@@ -1,9 +1,10 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
-import { ref, watch, nextTick, onBeforeUnmount, onMounted } from 'vue';
+import { ref, watch, nextTick, onBeforeUnmount, onMounted, computed } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { showConfirm, showSuccess } from '@/Plugins/sweetalert';
 
 const page = usePage();
 
@@ -27,6 +28,10 @@ const selectedAddress = ref({
     latitude: null,
     longitude: null,
     full_address: '',
+    city: '',
+    province: '',
+    district: '',
+    postal_code: '',
     label: 'Rumah',
     recipient_name: '',
     phone_number: '',
@@ -60,6 +65,14 @@ const updateSelectedAddressFromCoords = async (coords) => {
         selectedAddress.value.longitude = coords.lng;
         selectedAddress.value.name = data.display_name || 'Lokasi Terpilih';
         selectedAddress.value.full_address = data.display_name || '';
+        
+        // Auto-fill administrative fields from geocoding
+        if (data.address) {
+            selectedAddress.value.province = data.address.state || '';
+            selectedAddress.value.city = data.address.city || data.address.town || data.address.county || '';
+            selectedAddress.value.district = data.address.suburb || data.address.neighbourhood || data.address.village || '';
+            selectedAddress.value.postal_code = data.address.postcode || '';
+        }
     } catch (error) {
         console.error('Error fetching address:', error);
     }
@@ -77,6 +90,7 @@ const updateEditingAddressFromCoords = async (coords) => {
         if (data.address) {
             editingAddress.value.province = data.address.state || editingAddress.value.province;
             editingAddress.value.city = data.address.city || data.address.town || data.address.county || editingAddress.value.city;
+            editingAddress.value.district = data.address.suburb || data.address.neighbourhood || data.address.village || editingAddress.value.district;
             editingAddress.value.postal_code = data.address.postcode || editingAddress.value.postal_code;
         }
     } catch (error) {
@@ -115,11 +129,11 @@ const useCurrentLocation = () => {
             },
             (error) => {
                 console.error('Error getting location:', error);
-                alert('Tidak dapat mengakses lokasi. Pastikan Anda mengizinkan akses lokasi.');
+                page.props.flash = { error: 'Tidak dapat mengakses lokasi. Pastikan Anda mengizinkan akses lokasi.' };
             }
         );
     } else {
-        alert('Browser Anda tidak mendukung geolocation.');
+        page.props.flash = { error: 'Browser Anda tidak mendukung geolocation.' };
     }
 };
 
@@ -304,6 +318,7 @@ const form = useForm({
     full_address: '',
     city: '',
     province: '',
+    district: '',
     postal_code: '',
     latitude: null,
     longitude: null,
@@ -315,6 +330,10 @@ const submitAddress = () => {
     form.recipient_name = selectedAddress.value.recipient_name;
     form.phone_number = selectedAddress.value.phone_number;
     form.full_address = selectedAddress.value.full_address;
+    form.city = selectedAddress.value.city;
+    form.province = selectedAddress.value.province;
+    form.district = selectedAddress.value.district;
+    form.postal_code = selectedAddress.value.postal_code;
     form.latitude = selectedAddress.value.latitude;
     form.longitude = selectedAddress.value.longitude;
     
@@ -327,6 +346,10 @@ const submitAddress = () => {
                 latitude: null,
                 longitude: null,
                 full_address: '',
+                city: '',
+                province: '',
+                district: '',
+                postal_code: '',
                 label: 'Rumah',
                 recipient_name: '',
                 phone_number: '',
@@ -343,11 +366,22 @@ const setDefaultAddress = (addressId) => {
 };
 
 const deleteAddress = (addressId) => {
-    if (confirm('Apakah Anda yakin ingin menghapus alamat ini?')) {
-        router.delete(route('profile.addresses.destroy', addressId), {
-            preserveScroll: true,
-        });
-    }
+    showConfirm({
+        title: 'Hapus Alamat?',
+        text: 'Apakah Anda yakin ingin menghapus alamat ini?',
+        icon: 'warning',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('profile.addresses.destroy', addressId), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    showSuccess('Alamat berhasil dihapus');
+                }
+            });
+        }
+    });
 };
 
 const editAddress = (address) => {
@@ -472,11 +506,11 @@ const useCurrentLocationForEdit = () => {
             },
             (error) => {
                 console.error('Error getting location:', error);
-                alert('Tidak dapat mengakses lokasi. Pastikan Anda mengizinkan akses lokasi.');
+                page.props.flash = { error: 'Tidak dapat mengakses lokasi. Pastikan Anda mengizinkan akses lokasi.' };
             }
         );
     } else {
-        alert('Browser Anda tidak mendukung geolocation.');
+        page.props.flash = { error: 'Browser Anda tidak mendukung geolocation.' };
     }
 };
 </script>
@@ -551,7 +585,7 @@ const useCurrentLocationForEdit = () => {
                                     </span>
                                     <span
                                         v-if="address.is_default"
-                                        class="inline-flex items-center text-blue-600 dark:text-blue-400"
+                                        class="inline-flex items-center text-amber-600 dark:text-amber-400"
                                     >
                                         <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -576,7 +610,7 @@ const useCurrentLocationForEdit = () => {
                                 <div class="mt-4 flex gap-3">
                                     <button
                                         @click="editAddress(address)"
-                                        class="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        class="text-sm font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
                                     >
                                         Ubah
                                     </button>
@@ -656,11 +690,11 @@ const useCurrentLocationForEdit = () => {
                                             v-model="searchQuery"
                                             type="text"
                                             placeholder="Cari lokasi/gedung/nama jalan"
-                                            class="block w-full rounded-lg border border-gray-300 bg-white py-3 pl-4 pr-12 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                                            class="block w-full rounded-lg border border-gray-300 bg-white py-3 pl-4 pr-12 text-sm text-gray-900 placeholder:text-gray-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-amber-500 dark:focus:ring-amber-500"
                                             @keyup.enter="searchLocation"
                                         >
                                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                                            <svg class="size-5 text-blue-500 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <svg class="size-5 text-amber-500 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                                             </svg>
@@ -818,16 +852,16 @@ const useCurrentLocationForEdit = () => {
                                 <!-- Address Details Form -->
                                 <div class="p-6 space-y-4">
                                     <!-- Instructions -->
-                                    <div class="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                                    <div class="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
                                         <div class="flex gap-3">
-                                            <svg class="size-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <svg class="size-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                                             </svg>
                                             <div class="flex-1">
-                                                <p class="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                                <p class="text-sm font-medium text-amber-900 dark:text-amber-200">
                                                     Sesuaikan titik lokasi dengan tombol arah
                                                 </p>
-                                                <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                                                <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
                                                     Gunakan tombol panah untuk menggeser peta. Pin merah menunjukkan lokasi yang akan disimpan.
                                                 </p>
                                             </div>
@@ -896,7 +930,7 @@ const useCurrentLocationForEdit = () => {
                                     <button
                                         type="button"
                                         @click="saveAddressDetails"
-                                        class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                        class="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                     >
                                         Pilih Titik Lokasi
                                     </button>
@@ -966,7 +1000,7 @@ const useCurrentLocationForEdit = () => {
                                             v-model="selectedAddress.recipient_name"
                                             type="text"
                                             required
-                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-amber-500 dark:focus:ring-amber-500"
                                             placeholder="Masukkan nama penerima"
                                         >
                                     </div>
@@ -980,16 +1014,90 @@ const useCurrentLocationForEdit = () => {
                                             v-model="selectedAddress.phone_number"
                                             type="tel"
                                             required
-                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-amber-500 dark:focus:ring-amber-500"
                                             placeholder="08xxxxxxxxxx"
                                         >
+                                    </div>
+
+                                    <!-- Auto-filled Administrative Fields -->
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <!-- Province -->
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Provinsi <span class="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                v-model="selectedAddress.province"
+                                                type="text"
+                                                required
+                                                readonly
+                                                class="block w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                                                placeholder="Terisi otomatis"
+                                            >
+                                        </div>
+
+                                        <!-- City -->
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Kota/Kabupaten <span class="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                v-model="selectedAddress.city"
+                                                type="text"
+                                                required
+                                                readonly
+                                                class="block w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                                                placeholder="Terisi otomatis"
+                                            >
+                                        </div>
+
+                                        <!-- District -->
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Kecamatan
+                                            </label>
+                                            <input
+                                                v-model="selectedAddress.district"
+                                                type="text"
+                                                readonly
+                                                class="block w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                                                placeholder="Terisi otomatis"
+                                            >
+                                        </div>
+
+                                        <!-- Postal Code -->
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Kode Pos <span class="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                v-model="selectedAddress.postal_code"
+                                                type="text"
+                                                required
+                                                readonly
+                                                class="block w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                                                placeholder="Terisi otomatis"
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <!-- Info Box -->
+                                    <div class="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
+                                        <div class="flex gap-2">
+                                            <svg class="size-5 text-amber-600 dark:text-amber-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                                            </svg>
+                                            <p class="text-xs text-amber-800 dark:text-amber-200">
+                                                Field Provinsi, Kota, Kecamatan, dan Kode Pos terisi otomatis dari titik lokasi yang Anda pilih di peta.
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <!-- Address Preview -->
                                     <div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-900">
                                         <div class="flex items-start gap-3">
-                                            <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-                                                <svg class="size-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
+                                                <svg class="size-5 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                                                 </svg>
@@ -1007,7 +1115,7 @@ const useCurrentLocationForEdit = () => {
                                     <button
                                         type="submit"
                                         :disabled="form.processing"
-                                        class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-800"
+                                        class="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-800"
                                     >
                                         {{ form.processing ? 'Menyimpan...' : 'Simpan Alamat' }}
                                     </button>
@@ -1077,8 +1185,8 @@ const useCurrentLocationForEdit = () => {
                                             v-model="editingAddress.label"
                                             type="text"
                                             required
-                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                                            placeholder="Cakra Buana Kost Putra"
+                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                                            
                                         >
                                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Contoh: Rumah, apartmen, atau kantor</p>
                                     </div>
@@ -1105,7 +1213,7 @@ const useCurrentLocationForEdit = () => {
                                                 <button
                                                     type="button"
                                                     @click="openEditMapModal"
-                                                    class="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 flex-shrink-0"
+                                                    class="text-sm font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400 flex-shrink-0"
                                                 >
                                                     Ubah
                                                 </button>
@@ -1123,8 +1231,8 @@ const useCurrentLocationForEdit = () => {
                                             v-model="editingAddress.full_address"
                                             required
                                             rows="3"
-                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                                            placeholder="Jl. Ganceng, RT.006/RW.008, Jatiranggon, Kec. Jatisampurna, Kota Bekasi, Jawa Barat 17433"
+                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                                            
                                         ></textarea>
                                     </div>
 
@@ -1138,8 +1246,8 @@ const useCurrentLocationForEdit = () => {
                                                 v-model="editingAddress.province"
                                                 type="text"
                                                 required
-                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                placeholder="Jawa Barat"
+                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                
                                             >
                                         </div>
                                         <div>
@@ -1150,8 +1258,8 @@ const useCurrentLocationForEdit = () => {
                                                 v-model="editingAddress.city"
                                                 type="text"
                                                 required
-                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                placeholder="Kota Bekasi"
+                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                
                                             >
                                         </div>
                                     </div>
@@ -1165,8 +1273,8 @@ const useCurrentLocationForEdit = () => {
                                             <input
                                                 type="text"
                                                 required
-                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                placeholder="Jatisampurna"
+                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                
                                             >
                                         </div>
                                         <div>
@@ -1176,8 +1284,8 @@ const useCurrentLocationForEdit = () => {
                                             <input
                                                 type="text"
                                                 required
-                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                placeholder="Jatiraden"
+                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                
                                             >
                                         </div>
                                     </div>
@@ -1191,8 +1299,8 @@ const useCurrentLocationForEdit = () => {
                                             v-model="editingAddress.postal_code"
                                             type="text"
                                             required
-                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            placeholder="17433"
+                                            class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                            
                                         >
                                     </div>
 
@@ -1206,8 +1314,8 @@ const useCurrentLocationForEdit = () => {
                                                 v-model="editingAddress.recipient_name"
                                                 type="text"
                                                 required
-                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                placeholder="Rio"
+                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                
                                             >
                                         </div>
                                         <div>
@@ -1218,8 +1326,8 @@ const useCurrentLocationForEdit = () => {
                                                 v-model="editingAddress.phone_number"
                                                 type="tel"
                                                 required
-                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                placeholder="085931402200"
+                                                class="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                
                                             >
                                         </div>
                                     </div>
@@ -1227,7 +1335,7 @@ const useCurrentLocationForEdit = () => {
                                     <!-- Submit Button -->
                                     <button
                                         type="submit"
-                                        class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                        class="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                     >
                                         Simpan Perubahan
                                     </button>
@@ -1369,7 +1477,7 @@ const useCurrentLocationForEdit = () => {
                                     <button
                                         type="button"
                                         @click="useCurrentLocationForEdit"
-                                        class="flex w-full items-center justify-center gap-3 rounded-lg border-2 border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                                        class="flex w-full items-center justify-center gap-3 rounded-lg border-2 border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
                                     >
                                         <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1378,16 +1486,16 @@ const useCurrentLocationForEdit = () => {
                                         <span>Gunakan Lokasi Saat Ini</span>
                                     </button>
 
-                                    <div class="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                                    <div class="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
                                         <div class="flex gap-3">
-                                            <svg class="size-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <svg class="size-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                                             </svg>
                                             <div class="flex-1">
-                                                <p class="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                                <p class="text-sm font-medium text-amber-900 dark:text-amber-200">
                                                     Geser peta untuk menyesuaikan titik lokasi
                                                 </p>
-                                                <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                                                <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
                                                     Pin merah di tengah menunjukkan lokasi yang akan disimpan. Geser peta hingga pin tepat di lokasi yang diinginkan.
                                                 </p>
                                             </div>
@@ -1397,7 +1505,7 @@ const useCurrentLocationForEdit = () => {
                                     <button
                                         type="button"
                                         @click="saveEditLocation"
-                                        class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                        class="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                     >
                                         Simpan Lokasi
                                     </button>
@@ -1410,3 +1518,5 @@ const useCurrentLocationForEdit = () => {
         </Teleport>
     </AppLayout>
 </template>
+
+

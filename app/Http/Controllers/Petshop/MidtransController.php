@@ -9,9 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class MidtransController extends Controller
 {
-    public function __construct(private readonly MidtransService $midtransService)
-    {
-    }
+    public function __construct(private readonly MidtransService $midtransService) {}
 
     /**
      * Handle notification webhook from Midtrans
@@ -20,7 +18,7 @@ class MidtransController extends Controller
     {
         try {
             $notification = $request->all();
-            
+
             Log::info('Midtrans Notification Received', $notification);
 
             $result = $this->midtransService->handleNotification($notification);
@@ -36,10 +34,9 @@ class MidtransController extends Controller
                 'status' => 'error',
                 'message' => $result['message'],
             ], 400);
-
         } catch (\Exception $e) {
             Log::error('Midtrans Notification Handler Error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Internal server error',
@@ -53,7 +50,7 @@ class MidtransController extends Controller
     public function finish(Request $request)
     {
         $orderId = $request->get('order_id');
-        
+
         return redirect()
             ->route('petshop.payment.status', ['order_id' => $orderId])
             ->with('success', 'Pembayaran Anda sedang diproses. Silakan tunggu konfirmasi.');
@@ -65,7 +62,7 @@ class MidtransController extends Controller
     public function unfinish(Request $request)
     {
         $orderId = $request->get('order_id');
-        
+
         return redirect()
             ->route('petshop.checkout.index')
             ->with('warning', 'Pembayaran belum selesai. Silakan coba lagi.');
@@ -77,7 +74,7 @@ class MidtransController extends Controller
     public function error(Request $request)
     {
         $orderId = $request->get('order_id');
-        
+
         return redirect()
             ->route('petshop.checkout.index')
             ->with('error', 'Terjadi kesalahan dalam proses pembayaran. Silakan coba lagi.');

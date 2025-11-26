@@ -29,8 +29,16 @@ const currentYear = new Date().getFullYear();
 }
 </style>
 
+<style>
+/* Dark mode footer background */
+:global(.dark) footer {
+    background: rgb(30 41 59 / 0.9) !important;
+}
+</style>
+
 <template>
-    <footer class="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black text-white">
+    <footer class="relative bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 text-gray-800 dark:text-[#111827]">
+        
         <!-- Curved Top Border (Cembung) -->
         <div class="absolute top-0 left-0 right-0 z-10">
             <svg viewBox="0 0 1440 100" class="w-full" preserveAspectRatio="none" style="height: 80px;">
@@ -41,11 +49,11 @@ const currentYear = new Date().getFullYear();
         <!-- Background Image -->
         <div class="absolute inset-0 overflow-hidden">
             <div 
-                class="h-full w-full bg-cover bg-center bg-no-repeat opacity-20"
+                class="h-full w-full bg-cover bg-center bg-no-repeat opacity-10 dark:opacity-10"
                 :style="{ backgroundImage: `url(/storage/footer_image.jpg)` }"
             ></div>
-            <!-- Gradient overlay untuk depth dan readability -->
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-gray-900/40 to-transparent"></div>
+            <!-- Overlay untuk depth dan readability -->
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-orange-50/20 to-orange-100/30 dark:from-slate-900/30 dark:via-slate-800/20 dark:to-transparent"></div>
         </div>
 
         <!-- Content -->
@@ -56,7 +64,7 @@ const currentYear = new Date().getFullYear();
                     <!-- Logo -->
                     <div class="flex items-center justify-center md:justify-start">
                         <img v-if="logoUrl" :src="logoUrl" alt="Logo" class="h-16 w-auto drop-shadow-lg" />
-                        <svg v-else class="h-16 w-auto text-white drop-shadow-lg" viewBox="0 0 317 48" xmlns="http://www.w3.org/2000/svg">
+                        <svg v-else class="h-16 w-auto text-orange-600 drop-shadow-lg" viewBox="0 0 317 48" xmlns="http://www.w3.org/2000/svg">
                             <path fill="currentColor" d="M0 0h48v48H0z" />
                             <text x="54" y="36" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="currentColor">Klinik Hewan</text>
                         </svg>
@@ -70,7 +78,7 @@ const currentYear = new Date().getFullYear();
                             :href="footerSettings.instagram_url"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="text-gray-300 transition-all duration-300 hover:scale-110 hover:text-pink-500"
+                            class="text-orange-600 transition-all duration-300 hover:scale-110 hover:text-pink-500"
                             aria-label="Instagram"
                         >
                             <svg class="h-8 w-8 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
@@ -84,7 +92,7 @@ const currentYear = new Date().getFullYear();
                             :href="footerSettings.facebook_url"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="text-gray-300 transition-all duration-300 hover:scale-110 hover:text-blue-500"
+                            class="text-orange-600 transition-all duration-300 hover:scale-110 hover:text-blue-500"
                             aria-label="Facebook"
                         >
                             <svg class="h-8 w-8 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
@@ -98,7 +106,7 @@ const currentYear = new Date().getFullYear();
                             :href="footerSettings.tiktok_url"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="text-gray-300 transition-all duration-300 hover:scale-110 hover:text-white"
+                            class="text-orange-600 transition-all duration-300 hover:scale-110 hover:text-gray-900"
                             aria-label="TikTok"
                         >
                             <svg class="h-8 w-8 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
@@ -112,7 +120,7 @@ const currentYear = new Date().getFullYear();
                             :href="footerSettings.youtube_url"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="text-gray-300 transition-all duration-300 hover:scale-110 hover:text-red-500"
+                            class="text-orange-600 transition-all duration-300 hover:scale-110 hover:text-red-500"
                             aria-label="YouTube"
                         >
                             <svg class="h-8 w-8 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
@@ -124,19 +132,19 @@ const currentYear = new Date().getFullYear();
 
                 <!-- About -->
                 <div>
-                    <h3 class="mb-4 text-lg font-semibold text-white drop-shadow-lg">About</h3>
-                    <p class="text-sm leading-relaxed text-gray-200" v-if="footerSettings.about_text">
+                    <h3 class="mb-4 text-lg font-semibold text-orange-700 drop-shadow-sm">About</h3>
+                    <p class="text-sm leading-relaxed text-gray-700 dark:text-[#111827]" v-if="footerSettings.about_text">
                         {{ footerSettings.about_text }}
                     </p>
-                    <p class="text-sm leading-relaxed text-gray-200" v-else>
+                    <p class="text-sm leading-relaxed text-gray-700 dark:text-[#111827]" v-else>
                         Klinik hewan terpercaya yang memberikan pelayanan terbaik untuk hewan kesayangan Anda.
                     </p>
                 </div>
 
                 <!-- Contact -->
                 <div>
-                    <h3 class="mb-4 text-lg font-semibold text-white drop-shadow-lg">Contact</h3>
-                    <ul class="space-y-3 text-sm text-gray-200">
+                    <h3 class="mb-4 text-lg font-semibold text-orange-700 drop-shadow-sm">Contact</h3>
+                    <ul class="space-y-3 text-sm text-gray-700 dark:text-[#111827]">
                         <li v-if="footerSettings.contact_phone" class="flex items-start">
                             <svg class="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -161,14 +169,14 @@ const currentYear = new Date().getFullYear();
 
                 <!-- Google Maps / Lokasi Kami -->
                 <div v-if="footerSettings.google_maps_iframe">
-                    <h3 class="mb-4 text-lg font-semibold text-white drop-shadow-lg">Lokasi Kami</h3>
+                    <h3 class="mb-4 text-lg font-semibold text-orange-700 drop-shadow-sm">Lokasi Kami</h3>
                     <div class="maps-container overflow-hidden rounded-lg shadow-xl" v-html="footerSettings.google_maps_iframe"></div>
                 </div>
             </div>
 
             <!-- Copyright -->
-            <div class="mt-8 border-t border-gray-700/50 pt-8 text-center text-sm">
-                <p class="text-gray-300">&copy; {{ currentYear }} Klinik Hewan. All rights reserved.</p>
+            <div class="mt-8 border-t border-orange-300/30 dark:border-amber-700/30 pt-8 text-center text-sm">
+                <p class="text-gray-600 dark:text-gray-400">&copy; {{ currentYear }} Klinik Hewan. All rights reserved.</p>
             </div>
         </div>
     </footer>

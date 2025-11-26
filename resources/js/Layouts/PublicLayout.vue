@@ -7,6 +7,8 @@ import Footer from '@/Components/Footer.vue';
 import WhatsAppButton from '@/Components/WhatsAppButton.vue';
 import ThemeSwitch from '@/Components/ThemeSwitch.vue';
 import Toast from '@/Components/Toast.vue';
+import NotificationDropdown from '@/Components/NotificationDropdown.vue';
+import NotificationPopup from '@/Components/NotificationPopup.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 
@@ -20,9 +22,15 @@ const logout = () => {
 
 // Mobile menu toggle
 const showMobileMenu = ref(false);
+const showAboutDropdown = ref(false);
+const showAboutMobile = ref(false);
 
 const toggleMobileMenu = () => {
     showMobileMenu.value = !showMobileMenu.value;
+};
+
+const toggleAboutMobile = () => {
+    showAboutMobile.value = !showAboutMobile.value;
 };
 
 // Load Midtrans Snap script
@@ -65,6 +73,44 @@ onMounted(() => {
                             <NavLink :href="route('blog')" :active="route().current('blog') || route().current('blog.show')">
                                 Blog
                             </NavLink>
+                            
+                            <!-- About Us Dropdown -->
+                            <div class="relative inline-flex items-center" @mouseenter="showAboutDropdown = true" @mouseleave="showAboutDropdown = false">
+                                <button
+                                    :class="[
+                                        'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none',
+                                        route().current('doctor-schedule') 
+                                            ? 'border-amber-400 text-gray-900 dark:text-gray-100 focus:border-amber-700'
+                                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700 focus:text-gray-700 dark:focus:text-gray-300 focus:border-gray-300 dark:focus:border-gray-700'
+                                    ]"
+                                >
+                                    About Us
+                                    <svg class="ms-1 size-4 transition-transform" :class="{ 'rotate-180': showAboutDropdown }" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
+                                
+                                <!-- Dropdown Menu -->
+                                <Transition
+                                    enter-active-class="transition ease-out duration-200"
+                                    enter-from-class="opacity-0 scale-95"
+                                    enter-to-class="opacity-100 scale-100"
+                                    leave-active-class="transition ease-in duration-75"
+                                    leave-from-class="opacity-100 scale-100"
+                                    leave-to-class="opacity-0 scale-95"
+                                >
+                                    <div v-show="showAboutDropdown" class="absolute left-0 top-full z-50 mt-2 w-48 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-700">
+                                        <div class="py-1">
+                                            <Link
+                                                :href="route('doctor-schedule')"
+                                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+                                            >
+                                                Jadwal Dokter
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </Transition>
+                            </div>
                         </div>
                     </div>
 
@@ -72,24 +118,30 @@ onMounted(() => {
                     <div class="hidden sm:ms-6 sm:flex sm:items-center">
                         <Link
                             :href="route('petshop.cart.show')"
-                            class="relative me-4 inline-flex items-center rounded-full bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                            class="relative me-4 rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
                         >
-                            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 2.25h1.386c.51 0 .955.343 1.087.835l.383 1.437m0 0 1.35 5.068m1.65 6.187h9.75m-9.75 0a2.25 2.25 0 11-4.5 0m4.5 0a2.25 2.25 0 01-4.5 0m14.25 0a2.25 2.25 0 11-4.5 0m4.5 0a2.25 2.25 0 01-4.5 0m0 0H7.125m12.75-7.875-1.064 4.256a1.125 1.125 0 01-1.09.844H8.978a1.125 1.125 0 01-1.09-.876l-1.148-4.599M7.5 6.75h13.125" />
+                            <svg xmlns="http://www.w3.org/2000/svg" class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
-                            <span class="ms-2 hidden md:inline">Keranjang</span>
                             <span
                                 v-if="cartSummary.total_items"
-                                class="absolute -right-2 -top-2 inline-flex size-5 items-center justify-center rounded-full bg-white text-xs font-bold text-amber-600 shadow"
+                                class="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white"
                             >
-                                {{ cartSummary.total_items }}
+                                {{ cartSummary.total_items > 9 ? '9+' : cartSummary.total_items }}
                             </span>
                         </Link>
                         <template v-if="$page.props.auth.user">
-                            <!-- Dark Mode Toggle -->
-                            <ThemeSwitch />
+                            <!-- Notification Bell (2px from Cart) -->
+                            <div class="ms-0.5">
+                                <NotificationDropdown />
+                            </div>
+                            
+                            <!-- Dark Mode Toggle (12px from Notification) -->
+                            <div class="ms-3">
+                                <ThemeSwitch />
+                            </div>
 
-                            <!-- Settings Dropdown -->
+                            <!-- Settings Dropdown (12px from Dark Mode) -->
                             <div class="ms-3 relative">
                                 <Dropdown align="right" width="48">
                                     <template #trigger>
@@ -122,15 +174,21 @@ onMounted(() => {
                                             Daftar Alamat
                                         </DropdownLink>
 
-                                        <DropdownLink :href="route('profile.favorites.index')">
-                                            Barang Favorit
+                                        <DropdownLink :href="route('profile.transactions.index')">
+                                            Daftar Transaksi
                                         </DropdownLink>
 
-                                        <DropdownLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')">
-                                            API Tokens
-                                        </DropdownLink>
+                                            <DropdownLink :href="route('profile.favorites.index')">
+                                                Produk Favorit
+                                            </DropdownLink>
 
-                                        <div class="border-t border-gray-200 dark:border-gray-600" />
+                                            <DropdownLink :href="route('booking.history')">
+                                                Riwayat Booking
+                                            </DropdownLink>
+
+                                            <DropdownLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')">
+                                                API Tokens
+                                            </DropdownLink>                                        <div class="border-t border-gray-200 dark:border-gray-600" />
 
                                         <!-- Authentication -->
                                         <form @submit.prevent="logout">
@@ -144,7 +202,9 @@ onMounted(() => {
                         </template>
                         <template v-else>
                             <!-- Dark Mode Toggle (for guests) -->
-                            <ThemeSwitch />
+                            <div class="ms-2">
+                                <ThemeSwitch />
+                            </div>
 
                             <Link
                                 :href="route('login')"
@@ -164,7 +224,9 @@ onMounted(() => {
                     <!-- Hamburger Menu Button (Mobile) -->
                     <div class="flex items-center gap-2 sm:hidden">
                         <!-- Dark Mode Toggle (Mobile) -->
-                        <ThemeSwitch />
+                        <div class="me-1">
+                            <ThemeSwitch />
+                        </div>
 
                         <!-- Hamburger Button -->
                         <button
@@ -211,6 +273,30 @@ onMounted(() => {
                     >
                         Blog
                     </Link>
+                    
+                    <!-- About Us Dropdown Mobile -->
+                    <div>
+                        <button
+                            @click="toggleAboutMobile"
+                            :class="{'border-amber-400 bg-amber-50 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300': route().current('doctor-schedule'), 'border-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-800 dark:hover:text-gray-200': !route().current('doctor-schedule')}"
+                            class="flex w-full items-center justify-between pl-3 pr-4 py-2 border-l-4 text-base font-medium transition duration-150 ease-in-out"
+                        >
+                            <span>About Us</span>
+                            <svg class="size-4 transition-transform" :class="{ 'rotate-180': showAboutMobile }" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <div v-show="showAboutMobile" class="bg-gray-50 dark:bg-gray-700">
+                            <Link
+                                :href="route('doctor-schedule')"
+                                :class="{'border-amber-400 bg-amber-50 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300': route().current('doctor-schedule'), 'border-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200': !route().current('doctor-schedule')}"
+                                class="block pl-6 pr-4 py-2 border-l-4 text-sm font-medium transition duration-150 ease-in-out"
+                            >
+                                Jadwal Dokter
+                            </Link>
+                        </div>
+                    </div>
+                    
                     <Link
                         :href="route('petshop.cart.show')"
                         class="flex items-center gap-2 pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition duration-150 ease-in-out"
@@ -250,7 +336,7 @@ onMounted(() => {
                                 :href="route('profile.favorites.index')"
                                 class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition duration-150 ease-in-out"
                             >
-                                Barang Favorit
+                                Produk Favorit
                             </Link>
                             <Link
                                 v-if="$page.props.jetstream.hasApiFeatures"
@@ -299,6 +385,9 @@ onMounted(() => {
 
         <!-- WhatsApp Floating Button -->
         <WhatsAppButton :phone-number="footerSettings.whatsapp_number" />
+
+        <!-- Notification Popup for Loyalty Points -->
+        <NotificationPopup v-if="$page.props.auth.user" />
 
         <!-- Toast Notification -->
         <Toast />

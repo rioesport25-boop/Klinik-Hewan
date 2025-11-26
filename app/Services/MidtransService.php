@@ -115,10 +115,9 @@ class MidtransService
                 'redirect_url' => $this->getSnapUrl($snapToken),
                 'payment' => $payment,
             ];
-
         } catch (Exception $e) {
             Log::error('Midtrans Create Transaction Error: ' . $e->getMessage());
-            
+
             return [
                 'success' => false,
                 'message' => 'Failed to create payment: ' . $e->getMessage(),
@@ -156,10 +155,10 @@ class MidtransService
      */
     protected function getSnapUrl(string $snapToken): string
     {
-        $baseUrl = config('midtrans.is_production') 
+        $baseUrl = config('midtrans.is_production')
             ? 'https://app.midtrans.com/snap/v2/vtweb/'
             : 'https://app.sandbox.midtrans.com/snap/v2/vtweb/';
-        
+
         return $baseUrl . $snapToken;
     }
 
@@ -218,10 +217,9 @@ class MidtransService
                 'success' => true,
                 'message' => 'Notification processed successfully',
             ];
-
         } catch (Exception $e) {
             Log::error('Midtrans Notification Error: ' . $e->getMessage());
-            
+
             return [
                 'success' => false,
                 'message' => 'Failed to process notification: ' . $e->getMessage(),
@@ -239,14 +237,14 @@ class MidtransService
     {
         try {
             $status = Transaction::status($orderId);
-            
+
             return [
                 'success' => true,
                 'data' => $status,
             ];
         } catch (Exception $e) {
             Log::error('Midtrans Check Status Error: ' . $e->getMessage());
-            
+
             return [
                 'success' => false,
                 'message' => 'Failed to check transaction status: ' . $e->getMessage(),
@@ -264,14 +262,14 @@ class MidtransService
     {
         try {
             $result = Transaction::cancel($orderId);
-            
+
             return [
                 'success' => true,
                 'data' => $result,
             ];
         } catch (Exception $e) {
             Log::error('Midtrans Cancel Transaction Error: ' . $e->getMessage());
-            
+
             return [
                 'success' => false,
                 'message' => 'Failed to cancel transaction: ' . $e->getMessage(),

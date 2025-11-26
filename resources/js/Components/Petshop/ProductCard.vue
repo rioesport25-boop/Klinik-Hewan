@@ -1,6 +1,8 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+
+const page = usePage();
 
 const props = defineProps({
     product: {
@@ -19,6 +21,33 @@ const placeholderImage = 'https://ui-avatars.com/api/?name=Petshop&background=EB
 
 const primaryImage = computed(() => props.product.primary_image_url || placeholderImage);
 const canAddToCart = computed(() => props.showAddButton && !props.product.has_variants);
+const isLoggedIn = computed(() => !!page.props.auth.user);
+const isFavorited = computed(() => {
+    const favIds = page.props.favoriteProductIds || [];
+    return favIds.includes(props.product.id);
+});
+
+const isTogglingFavorite = ref(false);
+
+const toggleFavorite = async () => {
+    if (!isLoggedIn.value) {
+        router.visit(route('login'));
+        return;
+    }
+
+    isTogglingFavorite.value = true;
+
+    router.post(
+        route('profile.favorites.toggle', props.product.id),
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isTogglingFavorite.value = false;
+            },
+        }
+    );
+};
 
 const formatCurrency = (value) => {
     if (value === null || value === undefined) {
@@ -42,11 +71,24 @@ const formatCurrency = (value) => {
                 class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
             >
 
-            <div v-if="product.discount_percentage" class="absolute left-3 top-3 rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow">
+            <!-- Favorite Button -->
+            <button
+                type="button"
+                @click="toggleFavorite"
+                :disabled="isTogglingFavorite"
+                class="absolute left-3 top-3 z-10 rounded-full bg-white/90 p-2 shadow-md transition hover:scale-110 hover:bg-white disabled:opacity-50 dark:bg-gray-800/90 dark:hover:bg-gray-800"
+                :class="isFavorited ? 'text-red-500' : 'text-gray-400 hover:text-red-500'"
+            >
+                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" :fill="isFavorited ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                </svg>
+            </button>
+
+            <div v-if="product.discount_percentage" class="absolute right-3 top-3 rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow">
                 -{{ product.discount_percentage }}%
             </div>
 
-            <div v-if="product.is_featured" class="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 shadow dark:bg-amber-900/50 dark:text-amber-200">
+            <div v-if="product.is_featured" class="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 shadow dark:bg-amber-900/50 dark:text-amber-200">
                 <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111 5.518.403a.562.562 0 01.318.986l-4.204 3.602 1.285 5.385a.562.562 0 01-.84.61L12 16.902l-4.722 2.694a.562.562 0 01-.84-.61l1.285-5.386-4.204-3.6a.562.562 0 01.318-.986l5.518-.403 2.125-5.112z" />
                 </svg>

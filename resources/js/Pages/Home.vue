@@ -1,6 +1,6 @@
 <script setup>
 import PublicLayout from '@/Layouts/PublicLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 
 const props = defineProps({
@@ -168,6 +168,40 @@ onUnmounted(() => {
                         :class="currentSlide === index ? 'bg-amber-400 w-8' : 'bg-white bg-opacity-50 hover:bg-opacity-75'"
                         :aria-label="'Go to slide ' + (index + 1)"
                     ></button>
+                </div>
+
+                <!-- CTA Button Buat Janji Temu -->
+                <div class="mt-10 flex justify-center" data-aos="zoom-in" data-aos-delay="200">
+                    <Link
+                        :href="route('booking.index')"
+                        class="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-500 to-amber-600 px-8 py-4 text-lg font-semibold text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-amber-500/50"
+                    >
+                        <!-- Animated background effect -->
+                        <span class="absolute inset-0 h-full w-full bg-gradient-to-br from-amber-400 to-amber-700 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></span>
+                        
+                        <!-- Icon -->
+                        <svg
+                            class="relative mr-2 h-6 w-6 transition-transform duration-300 group-hover:scale-110"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        
+                        <!-- Button Text -->
+                        <span class="relative">Buat Janji Temu</span>
+                        
+                        <!-- Arrow icon that appears on hover -->
+                        <svg
+                            class="relative ml-2 h-5 w-5 translate-x-0 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                    </Link>
                 </div>
             </div>
 

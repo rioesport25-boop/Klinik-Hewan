@@ -5,6 +5,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { showConfirm, showSuccess, showError } from '@/Plugins/sweetalert';
 
 const props = defineProps({
     cart: {
@@ -25,14 +26,101 @@ const page = usePage();
 const flash = computed(() => page.props.flash || {});
 
 const cartItems = computed(() => props.cart.items ?? []);
-const subtotal = computed(() => props.cart.subtotal ?? 0);
+const subtotal = computed(() => {
+    // Calculate subtotal only for selected items
+    if (selectedItems.value.length === 0) {
+        return 0;
+    }
+    return cartItems.value
+        .filter(item => selectedItems.value.includes(item.id))
+        .reduce((sum, item) => sum + (item.subtotal || 0), 0);
+});
 const isEmpty = computed(() => cartItems.value.length === 0);
+
+// Confirm dialog state
+const confirmDialog = ref({
+    show: false,
+    title: '',
+    message: '',
+    type: 'danger',
+    onConfirm: null
+});
+
+const showConfirmDialog = (title, message, onConfirm, type = 'danger') => {
+    confirmDialog.value = {
+        show: true,
+        title,
+        message,
+        type,
+        onConfirm
+    };
+};
+
+const handleConfirm = () => {
+    if (confirmDialog.value.onConfirm) {
+        confirmDialog.value.onConfirm();
+    }
+    confirmDialog.value.show = false;
+};
+
+const handleCancelDialog = () => {
+    confirmDialog.value.show = false;
+};
+
+// Checkbox state for "Pilih Semua"
+const selectedItems = ref([]);
+const isAllSelected = computed({
+    get: () => cartItems.value.length > 0 && selectedItems.value.length === cartItems.value.length,
+    set: (value) => {
+        if (value) {
+            selectedItems.value = cartItems.value.map(item => item.id);
+        } else {
+            selectedItems.value = [];
+        }
+    }
+});
+
+// Toggle individual item selection
+const toggleItemSelection = (itemId) => {
+    const index = selectedItems.value.indexOf(itemId);
+    if (index > -1) {
+        selectedItems.value.splice(index, 1);
+    } else {
+        selectedItems.value.push(itemId);
+    }
+};
+
+// Delete selected items
+const deleteSelectedItems = () => {
+    if (selectedItems.value.length === 0) {
+        page.props.flash = {
+            warning: 'Pilih produk yang ingin dihapus terlebih dahulu'
+        };
+        return;
+    }
+    
+    showConfirmDialog(
+        'Hapus Produk',
+        `Apakah Anda yakin ingin menghapus ${selectedItems.value.length} produk dari keranjang?`,
+        () => {
+            router.post(route('petshop.cart.removeMultiple'), {
+                item_ids: selectedItems.value
+            }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    selectedItems.value = [];
+                }
+            });
+        },
+        'danger'
+    );
+};
 
 // Modal state
 const showDeliveryModal = ref(false);
 const showTimePickerModal = ref(false);
 const selectedDeliveryType = ref('delivery'); // 'delivery' or 'pickup'
-const selectedDeliveryOption = ref('instant'); // 'instant' or 'regular'
+const selectedDeliveryOption = ref(null); // 'instant' or 'regular' - null by default (user must select)
 const selectedDeliveryTime = ref(null); // Selected time slot
 const selectedDeliveryDate = ref('today'); // 'today' or 'tomorrow'
 const isProcessingCheckout = ref(false);
@@ -41,6 +129,11 @@ const isProcessingCheckout = ref(false);
 const shippingFee = computed(() => {
     if (selectedDeliveryType.value === 'pickup') {
         return 0; // Pickup is free
+    }
+    
+    // Jika tipe delivery tapi belum pilih instant/regular, return null
+    if (selectedDeliveryType.value === 'delivery' && !selectedDeliveryOption.value) {
+        return null;
     }
     
     if (selectedDeliveryOption.value === 'instant') {
@@ -60,7 +153,7 @@ const shippingFee = computed(() => {
 });
 
 // Calculate total
-const total = computed(() => subtotal.value + shippingFee.value);
+const total = computed(() => subtotal.value + (shippingFee.value || 0));
 
 // Check if current time is within operational hours (07:00 - 21:00 WIB)
 const isOperationalHours = computed(() => {
@@ -167,6 +260,12 @@ const selectDeliveryOption = (option) => {
         return;
     }
     selectedDeliveryOption.value = option;
+    
+    // If selecting "regular", automatically open time picker modal
+    if (option === 'regular') {
+        showDeliveryModal.value = false;
+        showTimePickerModal.value = true;
+    }
 };
 
 const selectDeliveryType = (type) => {
@@ -185,13 +284,13 @@ const confirmTimeSelection = () => {
 // Auto-adjust selections when outside operational hours
 watch(isOperationalHours, (newValue) => {
     if (!newValue) {
-        // Outside operational hours - switch to delivery with regular option
+        // Outside operational hours - reset instant and pickup selections
         if (selectedDeliveryType.value === 'pickup') {
             selectedDeliveryType.value = 'delivery';
-            selectedDeliveryOption.value = 'regular';
+            selectedDeliveryOption.value = null; // Reset to null, user must select
         }
         if (selectedDeliveryOption.value === 'instant') {
-            selectedDeliveryOption.value = 'regular';
+            selectedDeliveryOption.value = null; // Reset to null, user must select
         }
         if (selectedDeliveryDate.value === 'today') {
             selectedDeliveryDate.value = 'tomorrow';
@@ -200,6 +299,12 @@ watch(isOperationalHours, (newValue) => {
 });
 
 const confirmDeliveryType = () => {
+    // Validate that delivery option is selected for delivery type
+    if (selectedDeliveryType.value === 'delivery' && !selectedDeliveryOption.value) {
+        page.props.flash = { warning: 'Silakan pilih tipe pengiriman terlebih dahulu (Instan atau Reguler).' };
+        return;
+    }
+    
     // If regular delivery is selected but no time selected, open time picker
     if (selectedDeliveryType.value === 'delivery' && 
         selectedDeliveryOption.value === 'regular' && 
@@ -218,31 +323,65 @@ const getDeliveryLabel = () => {
     if (selectedDeliveryOption.value === 'instant') {
         return 'Pesan Antar - Instan (Rp 7.000)';
     }
-    if (selectedDeliveryTime.value) {
+    if (selectedDeliveryOption.value === 'regular' && selectedDeliveryTime.value) {
         const dateLabel = getDateLabel(selectedDeliveryDate.value);
         return `Pesan Antar - Reguler (${dateLabel.date} ${dateLabel.month}, ${selectedDeliveryTime.value}) - Rp 5.000`;
     }
-    return 'Pesan Antar - Reguler (Pilih Waktu) - Rp 5.000';
+    if (selectedDeliveryOption.value === 'regular') {
+        return 'Pesan Antar - Reguler (Pilih Waktu) - Rp 5.000';
+    }
+    return 'Pilih Tipe Pengiriman';
 };
 
 const processCheckout = () => {
-    // Validate delivery selection
+    // Validate that at least one item is selected
+    if (selectedItems.value.length === 0) {
+        page.props.flash = { warning: 'Silakan pilih minimal satu produk untuk checkout.' };
+        return;
+    }
+
+    // Validate that delivery type option is selected for delivery
+    if (selectedDeliveryType.value === 'delivery' && !selectedDeliveryOption.value) {
+        page.props.flash = { warning: 'Silakan pilih tipe pengiriman terlebih dahulu (Instan atau Reguler).' };
+        openDeliveryModal();
+        return;
+    }
+    
+    // Validate delivery time for regular delivery
     if (selectedDeliveryType.value === 'delivery' && 
         selectedDeliveryOption.value === 'regular' && 
         !selectedDeliveryTime.value) {
-        alert('Silakan pilih waktu pengiriman terlebih dahulu.');
+        page.props.flash = { warning: 'Silakan pilih waktu pengiriman terlebih dahulu.' };
         return;
     }
 
     // Check if default address exists for delivery
     if (selectedDeliveryType.value === 'delivery' && !props.defaultAddress) {
-        alert('Silakan tambahkan alamat pengiriman terlebih dahulu di halaman profil.');
+        page.props.flash = { warning: 'Silakan tambahkan alamat pengiriman terlebih dahulu di halaman profil.' };
         return;
+    }
+
+    // Validate that default address has all required fields
+    if (selectedDeliveryType.value === 'delivery' && props.defaultAddress) {
+        const missingFields = [];
+        
+        if (!props.defaultAddress.recipient_name) missingFields.push('Nama Penerima');
+        if (!props.defaultAddress.phone_number) missingFields.push('Nomor Telepon');
+        if (!props.defaultAddress.full_address) missingFields.push('Alamat Lengkap');
+        if (!props.defaultAddress.city) missingFields.push('Kota');
+        if (!props.defaultAddress.province) missingFields.push('Provinsi');
+        if (!props.defaultAddress.postal_code) missingFields.push('Kode Pos');
+        
+        if (missingFields.length > 0) {
+            page.props.flash = { warning: `Alamat pengiriman belum lengkap. Mohon lengkapi: ${missingFields.join(', ')}. Silakan perbarui alamat di halaman profil.` };
+            return;
+        }
     }
 
     isProcessingCheckout.value = true;
 
     router.post(route('petshop.cart.checkout'), {
+        selected_items: selectedItems.value, // Send only selected item IDs
         delivery_type: selectedDeliveryType.value,
         delivery_option: selectedDeliveryOption.value,
         delivery_date: selectedDeliveryDate.value,
@@ -266,7 +405,7 @@ const processCheckout = () => {
                     },
                     onError: function(result) {
                         isProcessingCheckout.value = false;
-                        alert('Pembayaran gagal. Silakan coba lagi.');
+                        page.props.flash = { error: 'Pembayaran gagal. Silakan coba lagi.' };
                     },
                     onClose: function() {
                         isProcessingCheckout.value = false;
@@ -274,7 +413,7 @@ const processCheckout = () => {
                 });
             } else {
                 isProcessingCheckout.value = false;
-                alert('Gagal memuat sistem pembayaran. Silakan refresh halaman.');
+                page.props.flash = { error: 'Gagal memuat sistem pembayaran. Silakan refresh halaman.' };
             }
         },
         onError: (errors) => {
@@ -282,8 +421,8 @@ const processCheckout = () => {
             console.error('Checkout Error:', errors);
             
             // Show more detailed error message
-            const errorMessage = errors.message || Object.values(errors).flat().join('\n') || 'Terjadi kesalahan. Silakan coba lagi.';
-            alert(errorMessage);
+            const errorMessage = errors.message || Object.values(errors).flat().join(', ') || 'Terjadi kesalahan. Silakan coba lagi.';
+            page.props.flash = { error: errorMessage };
         },
     });
 };
@@ -321,19 +460,41 @@ const updateQuantity = (item, quantity) => {
 };
 
 const removeItem = (item) => {
-    if (confirm('Hapus produk ini dari keranjang?')) {
-        router.delete(route('petshop.cart.items.destroy', item.id), {
-            preserveScroll: true,
-        });
-    }
+    showConfirm({
+        title: 'Hapus Produk?',
+        text: 'Apakah Anda yakin ingin menghapus produk ini dari keranjang?',
+        icon: 'warning',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('petshop.cart.items.destroy', item.id), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    showSuccess('Produk berhasil dihapus dari keranjang');
+                }
+            });
+        }
+    });
 };
 
 const clearCart = () => {
-    if (confirm('Kosongkan seluruh keranjang?')) {
-        router.post(route('petshop.cart.clear'), {}, {
-            preserveScroll: true,
-        });
-    }
+    showConfirm({
+        title: 'Kosongkan Keranjang?',
+        text: 'Apakah Anda yakin ingin menghapus semua produk dari keranjang?',
+        icon: 'warning',
+        confirmButtonText: 'Ya, Kosongkan!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.post(route('petshop.cart.clear'), {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    showSuccess('Keranjang berhasil dikosongkan');
+                }
+            });
+        }
+    });
 };
 </script>
 
@@ -343,21 +504,13 @@ const clearCart = () => {
     <PublicLayout>
         <section class="bg-gray-50 py-12 dark:bg-gray-900">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <p class="text-sm font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">
-                            Langkah 1 dari 2
-                        </p>
-                        <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
-                            Keranjang Belanja
-                        </h1>
-                        <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                            Periksa kembali produk sebelum melanjutkan ke proses checkout.
-                        </p>
-                    </div>
-                    <SecondaryButton v-if="!isEmpty" @click="clearCart">
-                        Kosongkan Keranjang
-                    </SecondaryButton>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
+                        Keranjang Belanja
+                    </h1>
+                    <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                        Periksa kembali produk sebelum melanjutkan ke proses checkout.
+                    </p>
                 </div>
 
                 <div class="mt-10 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -383,53 +536,88 @@ const clearCart = () => {
                         </div>
 
                         <div v-else class="space-y-4">
+                            <!-- Header Grid: Pilih Semua dan Hapus -->
+                            <div class="flex items-center justify-between rounded-3xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                                <label class="flex items-center gap-2 cursor-pointer select-none">
+                                    <input 
+                                        type="checkbox" 
+                                        v-model="isAllSelected"
+                                        class="size-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
+                                    >
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Pilih Semua</span>
+                                </label>
+                                <button
+                                    v-if="selectedItems.length > 0"
+                                    @click="deleteSelectedItems"
+                                    class="text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition"
+                                >
+                                    Hapus
+                                </button>
+                            </div>
+
+                            <!-- Cart Items -->
                             <article
                                 v-for="item in cartItems"
                                 :key="item.id"
-                                class="flex flex-col gap-4 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800 md:flex-row md:items-center"
+                                class="flex items-center gap-4 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
                             >
-                                <div class="h-28 w-28 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-700">
+                                <!-- Checkbox -->
+                                <input 
+                                    type="checkbox"
+                                    :checked="selectedItems.includes(item.id)"
+                                    @change="toggleItemSelection(item.id)"
+                                    class="size-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 flex-shrink-0"
+                                >
+                                
+                                <!-- Product Image -->
+                                <div class="h-20 w-20 md:h-28 md:w-28 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-700">
                                     <img
                                         :src="item.product?.primary_image_url || 'https://ui-avatars.com/api/?name=Petshop&background=EBF4FF&color=7F9CF5'"
                                         :alt="item.product?.name"
                                         class="h-full w-full object-cover"
                                     >
                                 </div>
-                                <div class="flex flex-1 flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                    <div>
-                                        <Link
-                                            :href="route('petshop.product.show', item.product?.slug)"
-                                            class="text-lg font-semibold text-gray-900 transition hover:text-amber-600 dark:text-white dark:hover:text-amber-300"
-                                        >
-                                            {{ item.product?.name }}
-                                        </Link>
-                                        <p v-if="item.variant?.name" class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            Varian: {{ item.variant.name }}
-                                        </p>
-                                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            Harga satuan: {{ formatCurrency(item.price) }}
-                                        </p>
-                                    </div>
-                                    <div class="flex flex-col items-end gap-3">
-                                        <QuantitySelector
-                                            :model-value="item.quantity"
-                                            :max="itemMaxStock(item)"
-                                            @update:model-value="(value) => updateQuantity(item, value)"
-                                        />
-                                        <div class="text-right">
-                                            <p class="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">Subtotal</p>
-                                            <p class="text-lg font-semibold text-amber-600 dark:text-amber-300">
-                                                {{ formatCurrency(item.subtotal) }}
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            @click="removeItem(item)"
-                                            class="text-xs font-semibold uppercase tracking-wide text-red-500 transition hover:text-red-600 dark:text-red-300 dark:hover:text-red-200"
-                                        >
-                                            Hapus
-                                        </button>
-                                    </div>
+                                
+                                <!-- Product Info -->
+                                <div class="flex flex-1 flex-col gap-1">
+                                    <Link
+                                        :href="route('petshop.product.show', item.product?.slug)"
+                                        class="text-base md:text-lg font-semibold text-gray-900 transition hover:text-amber-600 dark:text-white dark:hover:text-amber-300 line-clamp-2"
+                                    >
+                                        {{ item.product?.name }}
+                                    </Link>
+                                    <p v-if="item.variant?.name" class="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                                        Varian: {{ item.variant.name }}
+                                    </p>
+                                </div>
+
+                                <!-- Delete Icon -->
+                                <button
+                                    type="button"
+                                    @click="removeItem(item)"
+                                    class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-700 dark:hover:text-red-400 flex-shrink-0"
+                                    title="Hapus produk"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+
+                                <!-- Quantity Selector -->
+                                <div class="flex-shrink-0">
+                                    <QuantitySelector
+                                        :model-value="item.quantity"
+                                        :max="itemMaxStock(item)"
+                                        @update:model-value="(value) => updateQuantity(item, value)"
+                                    />
+                                </div>
+
+                                <!-- Subtotal - Di Ujung Kanan -->
+                                <div class="text-right flex-shrink-0 min-w-[100px]">
+                                    <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Subtotal</p>
+                                    <p class="text-base md:text-lg font-bold text-amber-600 dark:text-amber-300">
+                                        {{ formatCurrency(item.subtotal) }}
+                                    </p>
                                 </div>
                             </article>
                         </div>
@@ -437,13 +625,13 @@ const clearCart = () => {
 
                     <aside class="space-y-6">
                         <!-- Free Shipping Info - Dynamic based on delivery option -->
-                        <div v-if="selectedDeliveryType === 'delivery' && ((selectedDeliveryOption === 'regular' && subtotal < 30000) || (selectedDeliveryOption === 'instant' && subtotal < 150000))" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20">
+                        <div v-if="selectedDeliveryType === 'delivery' && ((selectedDeliveryOption === 'regular' && subtotal < 30000) || (selectedDeliveryOption === 'instant' && subtotal < 150000))" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20">
                             <div class="flex items-start gap-3">
-                                <svg class="size-5 flex-shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <svg class="size-5 flex-shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                                 </svg>
                                 <div class="flex-1">
-                                    <p class="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                    <p class="text-sm font-medium text-amber-900 dark:text-amber-200">
                                         Dapatkan gratis ongkir untuk pembelanjaan di atas <span class="font-bold">{{ selectedDeliveryOption === 'instant' ? 'Rp 150.000' : 'Rp 30.000' }}</span>
                                     </p>
                                 </div>
@@ -460,38 +648,38 @@ const clearCart = () => {
                                 <button
                                     type="button"
                                     @click="openDeliveryModal"
-                                    class="w-full flex items-center gap-3 rounded-xl border-2 border-blue-200 bg-blue-50 p-3 transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:hover:border-blue-700 dark:hover:bg-blue-900/30"
+                                    class="w-full flex items-center gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 p-3 transition hover:border-blue-300 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:hover:border-blue-700 dark:hover:bg-amber-900/30"
                                 >
                                     <div class="flex-shrink-0">
-                                        <svg v-if="selectedDeliveryType === 'delivery'" class="size-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <svg v-if="selectedDeliveryType === 'delivery'" class="size-5 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
                                         </svg>
-                                        <svg v-else class="size-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <svg v-else class="size-5 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
                                         </svg>
                                     </div>
                                     <div class="flex-1 text-left">
-                                        <p class="text-sm font-semibold text-blue-900 dark:text-blue-200">
-                                            {{ selectedDeliveryType === 'delivery' ? 'Pesan Antar' : 'Ambil Toko' }}
-                                            <svg class="inline-block size-4 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <p class="text-sm font-semibold" :class="selectedDeliveryType === 'delivery' && !selectedDeliveryOption ? 'text-red-600 dark:text-red-400' : 'text-amber-900 dark:text-amber-200'">
+                                            {{ getDeliveryLabel() }}
+                                            <svg v-if="selectedDeliveryOption || selectedDeliveryType === 'pickup'" class="inline-block size-4 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                         </p>
-                                        <p v-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'instant'" class="text-xs" :class="subtotal >= 150000 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-blue-700 dark:text-blue-300'">
-                                            Instan - ( {{ subtotal >= 150000 ? 'Gratis' : 'Rp 7.000' }} )
+                                        <p v-if="selectedDeliveryType === 'delivery' && !selectedDeliveryOption" class="text-xs text-red-600 dark:text-red-400 font-medium">
+                                            ⚠️ Wajib pilih tipe pengiriman
                                         </p>
-                                        <p v-else-if="selectedDeliveryType === 'delivery'" class="text-xs" :class="subtotal >= 30000 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-blue-700 dark:text-blue-300'">
-                                            Reguler - ( {{ subtotal >= 30000 ? 'Gratis' : 'Rp 5.000' }} )
+                                        <p v-else-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'instant'" class="text-xs" :class="subtotal >= 150000 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-amber-700 dark:text-amber-300'">
+                                            {{ subtotal >= 150000 ? 'Gratis Ongkir' : 'Rp 7.000' }} - 1 jam sampai setelah lunas
                                         </p>
-                                        <p v-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'instant'" class="text-xs text-blue-600 dark:text-blue-400">
-                                            1 jam sampai setelah lunas
+                                        <p v-else-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'regular' && selectedDeliveryTime" class="text-xs" :class="subtotal >= 30000 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-amber-700 dark:text-amber-300'">
+                                            {{ subtotal >= 30000 ? 'Gratis Ongkir' : 'Rp 5.000' }}
                                         </p>
-                                        <p v-else-if="selectedDeliveryType === 'delivery'" class="text-xs text-blue-600 dark:text-blue-400">
+                                        <p v-else-if="selectedDeliveryType === 'delivery' && selectedDeliveryOption === 'regular'" class="text-xs text-amber-600 dark:text-amber-400">
                                             Pilih Waktu Pengiriman
                                         </p>
                                     </div>
                                     <div class="flex-shrink-0">
-                                        <svg class="size-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <svg class="size-5 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                         </svg>
                                     </div>
@@ -510,7 +698,7 @@ const clearCart = () => {
                                     <Link
                                         v-if="$page.props.auth.user"
                                         :href="route('profile.addresses.index')"
-                                        class="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        class="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
                                     >
                                         Ubah Alamat
                                     </Link>
@@ -554,14 +742,14 @@ const clearCart = () => {
                                     <Link
                                         v-if="$page.props.auth.user"
                                         :href="route('profile.addresses.index')"
-                                        class="mt-2 inline-block text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        class="mt-2 inline-block text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
                                     >
                                         Tambah Alamat
                                     </Link>
                                     <Link
                                         v-else
                                         :href="route('login')"
-                                        class="mt-2 inline-block text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        class="mt-2 inline-block text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
                                     >
                                         Login
                                     </Link>
@@ -576,7 +764,7 @@ const clearCart = () => {
                             </h2>
                             <div class="space-y-3 text-sm text-gray-600 dark:text-gray-300 mt-4">
                             <div class="flex items-center justify-between">
-                                <span>Subtotal ({{ cart.total_items }} produk)</span>
+                                <span>Subtotal ({{ selectedItems.length }} produk dipilih)</span>
                                 <span class="font-semibold text-gray-900 dark:text-white">
                                     {{ formatCurrency(subtotal) }}
                                 </span>
@@ -584,12 +772,12 @@ const clearCart = () => {
                             <div class="flex items-center justify-between">
                                 <div class="flex flex-col">
                                     <span>Ongkir</span>
-                                    <span v-if="selectedDeliveryType === 'delivery' && ((selectedDeliveryOption === 'instant' && subtotal >= 150000) || (selectedDeliveryOption === 'regular' && subtotal >= 30000))" class="text-xs text-green-600 dark:text-green-400">
+                                    <span v-if="shippingFee === 0 && selectedDeliveryType === 'delivery' && selectedDeliveryOption" class="text-xs text-green-600 dark:text-green-400">
                                         🎉 Gratis ongkir!
                                     </span>
                                 </div>
-                                <span class="font-semibold" :class="shippingFee === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'">
-                                    {{ shippingFee === 0 ? 'Gratis' : formatCurrency(shippingFee) }}
+                                <span class="font-semibold" :class="shippingFee === 0 && shippingFee !== null ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'">
+                                    {{ shippingFee === null ? '-' : (shippingFee === 0 ? 'Gratis' : formatCurrency(shippingFee)) }}
                                 </span>
                             </div>
                             <div class="flex items-center justify-between border-t border-dashed border-gray-200 pt-3 text-base font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
@@ -600,10 +788,10 @@ const clearCart = () => {
 
                         <PrimaryButton
                             class="w-full justify-center rounded-2xl py-3 text-base"
-                            :disabled="isEmpty || isProcessingCheckout"
+                            :disabled="isEmpty || isProcessingCheckout || selectedItems.length === 0"
                             @click="processCheckout"
                         >
-                            {{ isProcessingCheckout ? 'Memproses...' : 'Bayar Sekarang' }}
+                            {{ isProcessingCheckout ? 'Memproses...' : (selectedItems.length === 0 ? 'Pilih Produk Terlebih Dahulu' : 'Bayar Sekarang') }}
                         </PrimaryButton>
 
                             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -666,7 +854,7 @@ const clearCart = () => {
                                             :class="[
                                                 'flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition',
                                                 selectedDeliveryType === 'delivery'
-                                                    ? 'bg-blue-600 text-white shadow-md'
+                                                    ? 'bg-amber-600 text-white shadow-md'
                                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                                             ]"
                                         >
@@ -681,7 +869,7 @@ const clearCart = () => {
                                                 !isPickupAvailable
                                                     ? 'cursor-not-allowed opacity-50 bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
                                                     : selectedDeliveryType === 'pickup'
-                                                    ? 'bg-blue-600 text-white shadow-md'
+                                                    ? 'bg-amber-600 text-white shadow-md'
                                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                                             ]"
                                         >
@@ -702,7 +890,7 @@ const clearCart = () => {
                                                 !isInstantAvailable
                                                     ? 'cursor-not-allowed opacity-50 border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800'
                                                     : selectedDeliveryOption === 'instant'
-                                                    ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
+                                                    ? 'border-amber-500 bg-amber-50 dark:border-amber-400 dark:bg-amber-900/20'
                                                     : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600'
                                             ]"
                                         >
@@ -712,7 +900,7 @@ const clearCart = () => {
                                                         <h4 :class="[
                                                             'font-semibold',
                                                             selectedDeliveryOption === 'instant'
-                                                                ? 'text-blue-900 dark:text-blue-200'
+                                                                ? 'text-amber-900 dark:text-amber-200'
                                                                 : 'text-gray-900 dark:text-white'
                                                         ]">
                                                             Instan
@@ -722,7 +910,7 @@ const clearCart = () => {
                                                             subtotal >= 150000 
                                                                 ? 'text-green-600 dark:text-green-400'
                                                                 : selectedDeliveryOption === 'instant'
-                                                                ? 'text-blue-700 dark:text-blue-300'
+                                                                ? 'text-amber-700 dark:text-amber-300'
                                                                 : 'text-gray-600 dark:text-gray-400'
                                                         ]">
                                                             {{ subtotal >= 150000 ? 'Gratis' : 'Rp 7.000' }}
@@ -733,7 +921,7 @@ const clearCart = () => {
                                                         !isInstantAvailable
                                                             ? 'text-red-600 dark:text-red-400'
                                                             : selectedDeliveryOption === 'instant'
-                                                            ? 'text-blue-600 dark:text-blue-400'
+                                                            ? 'text-amber-600 dark:text-amber-400'
                                                             : 'text-gray-500 dark:text-gray-400'
                                                     ]">
                                                         <span v-if="!isInstantAvailable">Tidak tersedia di luar jam operasional (07:00 - 21:00)</span>
@@ -741,7 +929,7 @@ const clearCart = () => {
                                                     </p>
                                                 </div>
                                                 <div v-if="selectedDeliveryOption === 'instant'" class="flex-shrink-0">
-                                                    <svg class="size-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    <svg class="size-5 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                 </div>
@@ -755,7 +943,7 @@ const clearCart = () => {
                                             :class="[
                                                 'w-full rounded-xl border-2 p-4 text-left transition',
                                                 selectedDeliveryOption === 'regular'
-                                                    ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
+                                                    ? 'border-amber-500 bg-amber-50 dark:border-amber-400 dark:bg-amber-900/20'
                                                     : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600'
                                             ]"
                                         >
@@ -765,7 +953,7 @@ const clearCart = () => {
                                                         <h4 :class="[
                                                             'font-semibold',
                                                             selectedDeliveryOption === 'regular'
-                                                                ? 'text-blue-900 dark:text-blue-200'
+                                                                ? 'text-amber-900 dark:text-amber-200'
                                                                 : 'text-gray-900 dark:text-white'
                                                         ]">
                                                             Reguler - Pilih Waktu
@@ -775,7 +963,7 @@ const clearCart = () => {
                                                             subtotal >= 30000 
                                                                 ? 'text-green-600 dark:text-green-400'
                                                                 : selectedDeliveryOption === 'regular'
-                                                                ? 'text-blue-600 dark:text-blue-400'
+                                                                ? 'text-amber-600 dark:text-amber-400'
                                                                 : 'text-gray-600 dark:text-gray-400'
                                                         ]">
                                                             {{ subtotal >= 30000 ? 'Gratis' : 'Rp 5.000' }}
@@ -784,7 +972,7 @@ const clearCart = () => {
                                                     <p :class="[
                                                         'mt-1 text-sm',
                                                         selectedDeliveryOption === 'regular'
-                                                            ? 'text-blue-600 dark:text-blue-400'
+                                                            ? 'text-amber-600 dark:text-amber-400'
                                                             : 'text-gray-500 dark:text-gray-400'
                                                     ]">
                                                         <template v-if="selectedDeliveryTime">
@@ -796,7 +984,7 @@ const clearCart = () => {
                                                     </p>
                                                 </div>
                                                 <div v-if="selectedDeliveryOption === 'regular'" class="flex-shrink-0">
-                                                    <svg class="size-5 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    <svg class="size-5 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                 </div>
@@ -808,7 +996,7 @@ const clearCart = () => {
                                             v-if="selectedDeliveryOption === 'regular'"
                                             type="button"
                                             @click="openTimePickerModal"
-                                            class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow transition hover:bg-blue-700"
+                                            class="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-medium text-white shadow transition hover:bg-amber-700"
                                         >
                                             <div class="flex items-center justify-center gap-2">
                                                 <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -839,7 +1027,7 @@ const clearCart = () => {
                                     <button
                                         type="button"
                                         @click="confirmDeliveryType"
-                                        class="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:bg-blue-700"
+                                        class="flex-1 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:bg-amber-700"
                                     >
                                         Konfirmasi
                                     </button>
@@ -909,7 +1097,7 @@ const clearCart = () => {
                                                     !isTodayAvailable
                                                         ? 'cursor-not-allowed opacity-50 border-gray-200 bg-gray-100 text-gray-500 dark:border-gray-700 dark:bg-gray-800'
                                                         : selectedDeliveryDate === 'today'
-                                                        ? 'border-blue-500 bg-blue-500 text-white dark:border-blue-400 dark:bg-blue-500'
+                                                        ? 'border-amber-500 bg-amber-500 text-white dark:border-amber-400 dark:bg-amber-500'
                                                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
                                                 ]"
                                             >
@@ -923,7 +1111,7 @@ const clearCart = () => {
                                                 :class="[
                                                     'flex flex-col items-center rounded-xl border-2 px-4 py-3 transition',
                                                     selectedDeliveryDate === 'tomorrow'
-                                                        ? 'border-blue-500 bg-blue-500 text-white dark:border-blue-400 dark:bg-blue-500'
+                                                        ? 'border-amber-500 bg-amber-500 text-white dark:border-amber-400 dark:bg-amber-500'
                                                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
                                                 ]"
                                             >
@@ -945,7 +1133,7 @@ const clearCart = () => {
                                                 :class="[
                                                     'flex items-center justify-between rounded-xl border-2 px-4 py-3 text-left transition',
                                                     selectedDeliveryTime === timeSlot.value
-                                                        ? 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-200'
+                                                        ? 'border-amber-500 bg-amber-50 text-amber-900 dark:border-amber-400 dark:bg-amber-900/30 dark:text-amber-200'
                                                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600'
                                                 ]"
                                             >
@@ -974,7 +1162,7 @@ const clearCart = () => {
                                         :class="[
                                             'flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-md transition',
                                             selectedDeliveryTime
-                                                ? 'bg-blue-600 hover:bg-blue-700'
+                                                ? 'bg-amber-600 hover:bg-amber-700'
                                                 : 'cursor-not-allowed bg-gray-400 dark:bg-gray-600'
                                         ]"
                                     >
@@ -989,3 +1177,4 @@ const clearCart = () => {
         </Teleport>
     </PublicLayout>
 </template>
+

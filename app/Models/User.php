@@ -80,4 +80,76 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class);
     }
+
+    /**
+     * Get the user's favorite products
+     */
+    public function favorites()
+    {
+        return $this->hasMany(UserFavorite::class);
+    }
+
+    /**
+     * Get the user's favorited products (many-to-many)
+     */
+    public function favoritedProducts()
+    {
+        return $this->belongsToMany(Product::class, 'user_favorites');
+    }
+
+    /**
+     * Get the user's notifications
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Get the user's unread notifications
+     */
+    public function unreadNotifications()
+    {
+        return $this->hasMany(Notification::class)->unread();
+    }
+
+    /**
+     * Get the user's pets
+     */
+    public function pets()
+    {
+        return $this->hasMany(Pet::class);
+    }
+
+    /**
+     * Get the user's appointments
+     */
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    /**
+     * Get the user's reviews
+     */
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Get the user's loyalty points transactions
+     */
+    public function loyaltyPoints()
+    {
+        return $this->hasMany(LoyaltyPoint::class);
+    }
+
+    /**
+     * Get user's total loyalty points balance
+     */
+    public function getLoyaltyPointsBalanceAttribute(): int
+    {
+        return LoyaltyPoint::getUserBalance($this->id);
+    }
 }

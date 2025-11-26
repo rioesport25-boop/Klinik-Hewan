@@ -28,26 +28,16 @@ class Login extends BaseLogin
 
         $data = $this->form->getState();
 
-        // Attempt to authenticate
-        if (!auth()->attempt([
-            'email' => $data['email'],
-            'password' => $data['password'],
-        ], $data['remember'] ?? false)) {
+        // Check if user is admin before authentication
+        $user = \App\Models\User::where('email', $data['email'])->first();
 
-            // Login credentials salah
+        if (!$user) {
             throw ValidationException::withMessages([
                 'data.email' => __('filament-panels::pages/auth/login.messages.failed'),
             ]);
         }
 
-        // Check if user is admin
-        $user = auth()->user();
-
         if ($user->role !== 'admin') {
-            // Logout non-admin user
-            auth()->logout();
-
-            // Show error message
             Notification::make()
                 ->title('Akses Ditolak')
                 ->body('Hanya admin yang dapat mengakses halaman ini. Silakan gunakan akun admin untuk login.')
@@ -58,6 +48,19 @@ class Login extends BaseLogin
                 'data.email' => 'Akun ini tidak memiliki akses admin.',
             ]);
         }
+
+        // Now attempt to authenticate
+        if (!auth()->guard('web')->attempt([
+            'email' => $data['email'],
+            'password' => $data['password'],
+        ], $data['remember'] ?? false)) {
+            throw ValidationException::withMessages([
+                'data.email' => __('filament-panels::pages/auth/login.messages.failed'),
+            ]);
+        }
+
+        // Regenerate session for security
+        request()->session()->regenerate();
 
         // Call parent authenticate to complete the login process
         return app(LoginResponse::class);

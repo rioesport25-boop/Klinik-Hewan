@@ -1,7 +1,9 @@
 <script setup>
 import PublicLayout from '@/Layouts/PublicLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { onMounted } from 'vue';
+
+const page = usePage();
 
 const props = defineProps({
     snap_token: {
@@ -62,7 +64,7 @@ onMounted(() => {
 
     script.onerror = () => {
         console.error('❌ Failed to load Snap script');
-        alert('Gagal memuat sistem pembayaran. Silakan refresh halaman.');
+        page.props.flash = { error: 'Gagal memuat sistem pembayaran. Silakan refresh halaman.' };
     };
 
     document.head.appendChild(script);

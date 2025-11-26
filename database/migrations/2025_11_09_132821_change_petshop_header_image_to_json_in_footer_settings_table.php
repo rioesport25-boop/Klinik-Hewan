@@ -15,10 +15,10 @@ return new class extends Migration
         Schema::table('footer_settings', function (Blueprint $table) {
             $table->json('petshop_header_images')->nullable()->after('petshop_header_image');
         });
-        
+
         // Copy existing data if any
         DB::statement('UPDATE footer_settings SET petshop_header_images = JSON_ARRAY(petshop_header_image) WHERE petshop_header_image IS NOT NULL');
-        
+
         Schema::table('footer_settings', function (Blueprint $table) {
             $table->dropColumn('petshop_header_image');
         });
@@ -32,7 +32,7 @@ return new class extends Migration
         Schema::table('footer_settings', function (Blueprint $table) {
             $table->string('petshop_header_image')->nullable()->after('gallery_parallax_bg');
         });
-        
+
         Schema::table('footer_settings', function (Blueprint $table) {
             $table->dropColumn('petshop_header_images');
         });
